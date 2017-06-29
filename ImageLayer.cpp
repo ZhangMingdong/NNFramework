@@ -6,13 +6,26 @@
 
 #include <QFile>
 
+#include <iostream>
+
+using namespace std;
+
+const int g_nFocusedIndex = 1;
+
 ImageLayer::ImageLayer() :_dataTexture(0)
 , _dataTextureMean(0)
 {
 	// 0.read data
-	readData();
+	const char* _strFile1 = "..\\cifar-10-batches-bin\\data_batch_2.bin";
+	const char* _strFile0 = "..\\cifar-10-batches-bin\\test_batch.bin";
+	readData(1, _strFile1);
+	readData(0, _strFile0);
 
+	// 1.statistic
 	statistic();
+
+	// 2.test
+	testMean();
 
 	// 3.generate texture
 	int nImgRow = 100;
@@ -32,9 +45,9 @@ ImageLayer::ImageLayer() :_dataTexture(0)
 					int nImgIndex = ii * nImgCol + jj;
 					int nPixelIndex = (ii*nRow + i) * nImgCol * nCol + jj * nCol + j;
 					int nPixelInImg = i * nCol + j;
-					_dataTexture[4 * nPixelIndex + 0] = _arrPixels[nImgIndex][nReversedI * 32 + j][0];
-					_dataTexture[4 * nPixelIndex + 1] = _arrPixels[nImgIndex][nReversedI * 32 + j][1];
-					_dataTexture[4 * nPixelIndex + 2] = _arrPixels[nImgIndex][nReversedI * 32 + j][2];
+					_dataTexture[4 * nPixelIndex + 0] = _arrPixels[g_nFocusedIndex][nImgIndex][nReversedI * 32 + j][0];
+					_dataTexture[4 * nPixelIndex + 1] = _arrPixels[g_nFocusedIndex][nImgIndex][nReversedI * 32 + j][1];
+					_dataTexture[4 * nPixelIndex + 2] = _arrPixels[g_nFocusedIndex][nImgIndex][nReversedI * 32 + j][2];
 					_dataTexture[4 * nPixelIndex + 3] = (GLubyte)255;
 				}
 			}
@@ -141,11 +154,11 @@ void ImageLayer::Draw() {
 }
 
 
-void ImageLayer::readData() {
-	const char* _strFile = "..\\cifar-10-batches-bin\\data_batch_1.bin";
+void ImageLayer::readData(int nIndex, const char* strFile) {
+	
 	// length of the data is 30730000
 	// which is (1+1024*3)*10000
-	QFile file(_strFile);
+	QFile file(strFile);
 	if (!file.open(QIODevice::ReadOnly)) {
 		return;
 	}
@@ -157,12 +170,12 @@ void ImageLayer::readData() {
 	int x = file.size();
 	for (size_t i = 0; i < 10000; i++)
 	{
-		_arrLabels[i] = *arrData++;
+		_arrLabels[nIndex][i] = *arrData++;
 		for (size_t k = 0; k < 3; k++)
 		{
 			for (size_t j = 0; j < 1024; j++)
 			{
-				_arrPixels[i][j][k]= *arrData++;
+				_arrPixels[nIndex][i][j][k]= *arrData++;
 			}
 		}
 	}
@@ -184,13 +197,13 @@ void ImageLayer::statistic() {
 
 	for (size_t i = 0; i < g_nImgs; i++)
 	{
-		int nClassIndex = _arrLabels[i];
+		int nClassIndex = _arrLabels[1][i];
 		arrCount[nClassIndex]++;
 
 		for (size_t j = 0; j < g_nPixels; j++)
 		{
 			for (size_t k = 0; k < 3; k++) {
-				_arrMean[nClassIndex][j][k] += _arrPixels[i][j][k];
+				_arrMean[nClassIndex][j][k] += _arrPixels[1][i][j][k];
 			}
 		}
 	}
@@ -205,4 +218,60 @@ void ImageLayer::statistic() {
 			}
 		}
 	}
+}
+
+void ImageLayer::testMean() {
+	int nRight = 0;
+	// test each image
+	for (size_t i = 0; i < g_nImgs; i++)
+	{
+		if (classify(i)==_arrLabels[0][i])
+		{
+			nRight++;
+		}
+	}
+	cout << "the right rate is: " << nRight / (double)g_nImgs << endl;
+}
+int ImageLayer::classify(int nIndex) {
+	double arrBias[g_nClass];
+	for (size_t i = 0; i < g_nClass; i++) arrBias[i] = 0;
+	bool bL2Distance = true;
+	if (bL2Distance)
+	{
+		for (size_t i = 0; i < g_nClass; i++)
+		{
+			for (size_t j = 0; j < g_nPixels; j++)
+			{
+				for (size_t k = 0; k < 3; k++)
+				{
+					arrBias[i] += pow(_arrPixels[0][nIndex][j][k] - _arrMean[i][j][k],2);
+				}
+			}
+			arrBias[i] = sqrt(arrBias[i]);
+		}
+
+	}
+	else {
+		for (size_t i = 0; i < g_nClass; i++)
+		{
+			for (size_t j = 0; j < g_nPixels; j++)
+			{
+				for (size_t k = 0; k < 3; k++)
+				{
+					arrBias[i] += abs(_arrPixels[0][nIndex][j][k] - _arrMean[i][j][k]);
+				}
+			}
+		}
+	}
+	// find the least bias
+	int nLeastIndex = 0;
+	double dbLeast = arrBias[0];
+	for (size_t i = 1; i < g_nClass; i++)
+	{
+		if (arrBias[i] < dbLeast) {
+			dbLeast = arrBias[i];
+			nLeastIndex = i;
+		}
+	}
+	return nLeastIndex;
 }
