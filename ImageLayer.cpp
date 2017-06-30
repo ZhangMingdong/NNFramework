@@ -14,6 +14,9 @@ const int g_nFocusedIndex = 1;
 
 ImageLayer::ImageLayer() :_dataTexture(0)
 , _dataTextureMean(0)
+, _arrW(0)
+, _dbDelta(1.0)
+, _dbLambda(1.0)
 {
 	// 0.read data
 	const char* _strFile1 = "..\\cifar-10-batches-bin\\data_batch_2.bin";
@@ -24,84 +27,21 @@ ImageLayer::ImageLayer() :_dataTexture(0)
 	// 1.statistic
 	statistic();
 
+	// initialize W
+	initW();
+
+	// calculate the loss
+	calculateLoss();
+
+	// test result
+	test(1);
+
 	// 2.test
-	testMean();
+//	test(0,TM_Mean);
 
-	// 3.generate texture
-	int nImgRow = 100;
-	int nImgCol = 100;
-	int nRow = 32;
-	int nCol = 32;
-	_dataTexture = new GLubyte[4 * nRow*nCol* nImgRow*nImgCol];
-	for (size_t ii = 0; ii < nImgRow; ii++)
-	{
-		for (size_t jj = 0; jj < nImgCol; jj++)
-		{
-			for (size_t i = 0; i < nRow; i++)
-			{
-				for (size_t j = 0; j < nCol; j++)
-				{					
-					int nReversedI = nRow - 1 - i;
-					int nImgIndex = ii * nImgCol + jj;
-					int nPixelIndex = (ii*nRow + i) * nImgCol * nCol + jj * nCol + j;
-					int nPixelInImg = i * nCol + j;
-					_dataTexture[4 * nPixelIndex + 0] = _arrPixels[g_nFocusedIndex][nImgIndex][nReversedI * 32 + j][0];
-					_dataTexture[4 * nPixelIndex + 1] = _arrPixels[g_nFocusedIndex][nImgIndex][nReversedI * 32 + j][1];
-					_dataTexture[4 * nPixelIndex + 2] = _arrPixels[g_nFocusedIndex][nImgIndex][nReversedI * 32 + j][2];
-					_dataTexture[4 * nPixelIndex + 3] = (GLubyte)255;
-				}
-			}
-		}
-	}
-
-
-	glGenTextures(1, &texID[0]);
-	glBindTexture(GL_TEXTURE_2D, texID[0]);
-	// 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	// 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, nImgCol*nCol, nImgRow*nRow, 0, GL_RGBA, GL_UNSIGNED_BYTE, _dataTexture);
-
-
-	// generate texture for means
-	_dataTextureMean = new GLubyte[4 * g_nRow*g_nCol* g_nClass];
-
-	for (size_t l = 0; l < g_nClass; l++)
-	{
-		for (size_t i = 0; i < nRow; i++)
-		{
-			for (size_t j = 0; j < nCol; j++)
-			{
-				int nReversedI = nRow - 1 - i;
-				int nPixelIndex = i * nCol*g_nClass + l * nCol + j;
-				int nPixelInImg = i * nCol + j;
-				_dataTextureMean[4 * nPixelIndex + 0] = _arrMean[l][nReversedI * 32 + j][0];
-				_dataTextureMean[4 * nPixelIndex + 1] = _arrMean[l][nReversedI * 32 + j][1];
-				_dataTextureMean[4 * nPixelIndex + 2] = _arrMean[l][nReversedI * 32 + j][2];
-				_dataTextureMean[4 * nPixelIndex + 3] = (GLubyte)255;
-			}
-		}
-	}
-
-
-	glGenTextures(1, &texID[1]);
-	glBindTexture(GL_TEXTURE_2D, texID[1]);
-	// 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	// 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, g_nClass*g_nCol, g_nRow, 0, GL_RGBA, GL_UNSIGNED_BYTE, _dataTextureMean);
-
-
+	// generate texture
+	generateTexture();
 }
-
 
 ImageLayer::~ImageLayer()
 {
@@ -113,6 +53,7 @@ ImageLayer::~ImageLayer()
 	{
 		delete[]_dataTextureMean;
 	}
+	if (_arrW) delete[] _arrW;
 }
 
 void ImageLayer::Draw() {
@@ -153,7 +94,6 @@ void ImageLayer::Draw() {
 	glDisable(GL_TEXTURE_2D);
 }
 
-
 void ImageLayer::readData(int nIndex, const char* strFile) {
 	
 	// length of the data is 30730000
@@ -168,12 +108,12 @@ void ImageLayer::readData(int nIndex, const char* strFile) {
 
 	unsigned char* arrData=(unsigned char*)temp;
 	int x = file.size();
-	for (size_t i = 0; i < 10000; i++)
+	for (size_t i = 0; i < g_nImgs; i++)
 	{
 		_arrLabels[nIndex][i] = *arrData++;
 		for (size_t k = 0; k < 3; k++)
 		{
-			for (size_t j = 0; j < 1024; j++)
+			for (size_t j = 0; j < g_nPixels; j++)
 			{
 				_arrPixels[nIndex][i][j][k]= *arrData++;
 			}
@@ -220,19 +160,37 @@ void ImageLayer::statistic() {
 	}
 }
 
-void ImageLayer::testMean() {
+void ImageLayer::test(int nTestIndex, EnumTestMode mode) {
 	int nRight = 0;
 	// test each image
-	for (size_t i = 0; i < g_nImgs; i++)
+	switch (mode)	
 	{
-		if (classify(i)==_arrLabels[0][i])
+	case TM_Mean:
+		for (size_t i = 0; i < g_nImgs; i++)
 		{
-			nRight++;
+			if (classifyByMean(i) == _arrLabels[nTestIndex][i])
+			{
+				nRight++;
+			}
 		}
+		break;
+	case TM_W:
+		for (size_t i = 0; i < g_nImgs; i++)
+		{
+			if (classifyByW(i) == _arrLabels[nTestIndex][i])
+			{
+				nRight++;
+			}
+		}
+		break;
+	default:
+		break;
 	}
-	cout << "the right rate is: " << nRight / (double)g_nImgs << endl;
+//	cout << "the right rate is: " << nRight / (double)g_nImgs << endl;
+	cout << nRight / (double)g_nImgs << endl;
 }
-int ImageLayer::classify(int nIndex) {
+
+int ImageLayer::classifyByMean(int nIndex) {
 	double arrBias[g_nClass];
 	for (size_t i = 0; i < g_nClass; i++) arrBias[i] = 0;
 	bool bL2Distance = true;
@@ -275,3 +233,188 @@ int ImageLayer::classify(int nIndex) {
 	}
 	return nLeastIndex;
 }
+
+void ImageLayer::generateTexture() {
+	// 3.generate texture
+	_dataTexture = new GLubyte[4 * g_nRow*g_nCol* g_nImgRow*g_nImgCol];
+	for (size_t ii = 0; ii < g_nImgRow; ii++)
+	{
+		for (size_t jj = 0; jj < g_nImgCol; jj++)
+		{
+			for (size_t i = 0; i < g_nRow; i++)
+			{
+				for (size_t j = 0; j < g_nCol; j++)
+				{
+					int nReversedI = g_nRow - 1 - i;
+					int nImgIndex = ii * g_nImgCol + jj;
+					int nPixelIndex = (ii*g_nRow + i) * g_nImgCol * g_nCol + jj * g_nCol + j;
+					int nPixelInImg = i * g_nCol + j;
+					_dataTexture[4 * nPixelIndex + 0] = _arrPixels[g_nFocusedIndex][nImgIndex][nReversedI * 32 + j][0];
+					_dataTexture[4 * nPixelIndex + 1] = _arrPixels[g_nFocusedIndex][nImgIndex][nReversedI * 32 + j][1];
+					_dataTexture[4 * nPixelIndex + 2] = _arrPixels[g_nFocusedIndex][nImgIndex][nReversedI * 32 + j][2];
+					_dataTexture[4 * nPixelIndex + 3] = (GLubyte)255;
+				}
+			}
+		}
+	}
+
+
+	glGenTextures(1, &texID[0]);
+	glBindTexture(GL_TEXTURE_2D, texID[0]);
+	// 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	// 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, g_nImgCol*g_nCol, g_nImgRow*g_nRow, 0, GL_RGBA, GL_UNSIGNED_BYTE, _dataTexture);
+
+
+	// generate texture for means
+	_dataTextureMean = new GLubyte[4 * g_nRow*g_nCol* g_nClass];
+
+	for (size_t l = 0; l < g_nClass; l++)
+	{
+		for (size_t i = 0; i < g_nRow; i++)
+		{
+			for (size_t j = 0; j < g_nCol; j++)
+			{
+				int nReversedI = g_nRow - 1 - i;
+				int nPixelIndex = i * g_nCol*g_nClass + l * g_nCol + j;
+				int nPixelInImg = i * g_nCol + j;
+				_dataTextureMean[4 * nPixelIndex + 0] = _arrMean[l][nReversedI * 32 + j][0];
+				_dataTextureMean[4 * nPixelIndex + 1] = _arrMean[l][nReversedI * 32 + j][1];
+				_dataTextureMean[4 * nPixelIndex + 2] = _arrMean[l][nReversedI * 32 + j][2];
+				_dataTextureMean[4 * nPixelIndex + 3] = (GLubyte)255;
+			}
+		}
+	}
+
+
+	glGenTextures(1, &texID[1]);
+	glBindTexture(GL_TEXTURE_2D, texID[1]);
+	// 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	// 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, g_nClass*g_nCol, g_nRow, 0, GL_RGBA, GL_UNSIGNED_BYTE, _dataTextureMean);
+
+
+}
+
+
+void ImageLayer::initW() {
+	int nLen = g_nClass*(g_nPixels * 3 + 1);
+	_arrW = new double[nLen];
+	for (size_t i = 0; i < nLen; i++)
+	{
+		_arrW[i] = 1;
+		_arrW[i] = rand()/(double)RAND_MAX;
+	}
+}
+
+
+double ImageLayer::calculateLoss() {
+	double dbLossRegularization = 0;
+
+	// loss of the parameter
+	int nLen = g_nClass*(g_nPixels * 3 + 1);
+	for (size_t i = 0; i < nLen; i++)
+	{
+		dbLossRegularization += _arrW[i]*_arrW[i];
+	}
+	dbLossRegularization = sqrt(dbLossRegularization);
+
+	double dbLossData = 0;
+	for (size_t i = 0; i < g_nImgs; i++)
+	{
+		dbLossData += calculateDataLoss(i);
+	}
+	dbLossData /= g_nImgs;
+
+	double dbLoss = dbLossRegularization + dbLossData;
+//	cout << "the regularization loss is: " << dbLossRegularization << endl;
+//	cout << "the data loss is: " << dbLossData << endl;
+//	cout << "the loss is: " << dbLoss << endl;
+
+	cout << dbLoss << "\t";
+	return dbLoss;
+}
+
+
+double ImageLayer::calculateDataLoss(int nIndex) {
+	int nLabel = _arrLabels[g_nFocusedIndex][nIndex];
+//	cout << "label:" << nLabel << endl;
+	double dbLoss = 0;
+	double arrScore[g_nClass];
+	calculateScore(nIndex, arrScore);
+//	for (size_t i = 0; i < g_nClass; i++)
+//	{
+//		cout << arrScore[i] << endl;
+//	}
+
+	for (size_t i = 0; i < g_nClass; i++)
+	{
+//		cout << endl;
+		if (i == nLabel) continue;
+		double dbBias = arrScore[i] - arrScore[nLabel] + _dbDelta;
+		if (dbBias > 0) dbLoss += dbBias;
+//		cout << dbBias;
+	}
+//	cout << endl;
+
+	return dbLoss;
+}
+
+
+void ImageLayer::calculateScore(int nIndex, double* arrScore) {
+	double* pW = _arrW;
+	for (size_t i = 0; i < g_nClass; i++)
+	{
+		arrScore[i] = 0;
+		for (size_t j = 0; j < g_nPixels; j++)
+		{
+			for (size_t k = 0; k < 3; k++)
+			{
+				arrScore[i] += (_arrPixels[g_nFocusedIndex][nIndex][j][k] * pW[j * 3 + k]);
+			}
+			arrScore[i] += pW[g_nPixels*3];			// b_i
+		}
+		pW += (g_nPixels * 3 + 1);
+	}
+}
+
+
+int ImageLayer::classifyByW(int nIndex) {
+	double arrScore[g_nClass];
+	calculateScore(nIndex, arrScore);
+	int nLabel = 0;
+	double dbMaxScore = arrScore[0];
+	for (size_t i = 1; i < g_nClass; i++)
+	{
+		if (arrScore[i] > dbMaxScore) {
+			dbMaxScore = arrScore[i];
+			nLabel = i;
+		}
+	}
+//	cout << "classify->label:" << nLabel << endl;
+//	for (size_t i = 0; i < g_nClass; i++)
+//	{
+//		cout << arrScore[i] << endl;
+//	}
+	return nLabel;	
+}
+
+
+
+
+
+
+
+
+
+
