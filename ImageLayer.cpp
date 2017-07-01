@@ -7,10 +7,13 @@
 #include <QFile>
 
 #include <iostream>
+#include <fstream>
+
 
 using namespace std;
 
 const int g_nFocusedIndex = 1;
+ofstream output("log.txt");
 
 ImageLayer::ImageLayer() :_dataTexture(0)
 , _dataTextureMean(0)
@@ -30,11 +33,14 @@ ImageLayer::ImageLayer() :_dataTexture(0)
 	// initialize W
 	initW();
 
+	train(g_nFocusedIndex);
+
 	// calculate the loss
-	calculateLoss();
+	calculateLoss(_arrW);
 
 	// test result
 	test(1);
+	test(0);
 
 	// 2.test
 //	test(0,TM_Mean);
@@ -308,9 +314,9 @@ void ImageLayer::generateTexture() {
 
 
 void ImageLayer::initW() {
-	int nLen = g_nClass*(g_nPixels * 3 + 1);
-	_arrW = new double[nLen];
-	for (size_t i = 0; i < nLen; i++)
+	int nWLen = g_nClass*(g_nPixels * 3 + 1);
+	_arrW = new double[nWLen];
+	for (size_t i = 0; i < nWLen; i++)
 	{
 		_arrW[i] = 1;
 		_arrW[i] = rand()/(double)RAND_MAX;
@@ -318,21 +324,21 @@ void ImageLayer::initW() {
 }
 
 
-double ImageLayer::calculateLoss() {
+double ImageLayer::calculateLoss(const double *pW) {
 	double dbLossRegularization = 0;
 
 	// loss of the parameter
-	int nLen = g_nClass*(g_nPixels * 3 + 1);
-	for (size_t i = 0; i < nLen; i++)
+	int nWLen = g_nClass*(g_nPixels * 3 + 1);
+	for (size_t i = 0; i < nWLen; i++)
 	{
-		dbLossRegularization += _arrW[i]*_arrW[i];
+		dbLossRegularization += pW[i]* pW[i];
 	}
 	dbLossRegularization = sqrt(dbLossRegularization);
 
 	double dbLossData = 0;
 	for (size_t i = 0; i < g_nImgs; i++)
 	{
-		dbLossData += calculateDataLoss(i);
+		dbLossData += calculateDataLoss(i,pW);
 	}
 	dbLossData /= g_nImgs;
 
@@ -341,17 +347,17 @@ double ImageLayer::calculateLoss() {
 //	cout << "the data loss is: " << dbLossData << endl;
 //	cout << "the loss is: " << dbLoss << endl;
 
-	cout << dbLoss << "\t";
+//	cout << dbLoss << "\t";
 	return dbLoss;
 }
 
 
-double ImageLayer::calculateDataLoss(int nIndex) {
+double ImageLayer::calculateDataLoss(int nIndex,const double* pW) {
 	int nLabel = _arrLabels[g_nFocusedIndex][nIndex];
 //	cout << "label:" << nLabel << endl;
 	double dbLoss = 0;
 	double arrScore[g_nClass];
-	calculateScore(nIndex, arrScore);
+	calculateScore(nIndex,pW, arrScore);
 //	for (size_t i = 0; i < g_nClass; i++)
 //	{
 //		cout << arrScore[i] << endl;
@@ -371,8 +377,8 @@ double ImageLayer::calculateDataLoss(int nIndex) {
 }
 
 
-void ImageLayer::calculateScore(int nIndex, double* arrScore) {
-	double* pW = _arrW;
+void ImageLayer::calculateScore(int nIndex, const double* pW, double* arrScore) {
+	const double* pWLine = pW;
 	for (size_t i = 0; i < g_nClass; i++)
 	{
 		arrScore[i] = 0;
@@ -380,18 +386,18 @@ void ImageLayer::calculateScore(int nIndex, double* arrScore) {
 		{
 			for (size_t k = 0; k < 3; k++)
 			{
-				arrScore[i] += (_arrPixels[g_nFocusedIndex][nIndex][j][k] * pW[j * 3 + k]);
+				arrScore[i] += (_arrPixels[g_nFocusedIndex][nIndex][j][k] * pWLine[j * 3 + k]);
 			}
-			arrScore[i] += pW[g_nPixels*3];			// b_i
+			arrScore[i] += pWLine[g_nPixels*3];			// b_i
 		}
-		pW += (g_nPixels * 3 + 1);
+		pWLine += (g_nPixels * 3 + 1);
 	}
 }
 
 
 int ImageLayer::classifyByW(int nIndex) {
 	double arrScore[g_nClass];
-	calculateScore(nIndex, arrScore);
+	calculateScore(nIndex,_arrW, arrScore);
 	int nLabel = 0;
 	double dbMaxScore = arrScore[0];
 	for (size_t i = 1; i < g_nClass; i++)
@@ -409,6 +415,78 @@ int ImageLayer::classifyByW(int nIndex) {
 	return nLabel;	
 }
 
+void ImageLayer::train(int nDataSetIndex) {
+	double dbStep = 0.01;
+	// current loss function value
+	int nWLen = g_nClass*(g_nPixels * 3 + 1);
+	double* arrTempW = new double[nWLen];
+	double* arrGradient = new double[nWLen];
+	for (size_t i = 0; i < nWLen; i++)
+	{
+		arrTempW[i] = _arrW[i];
+		arrGradient[i] = 0;
+	}
+	double dbLoss = 100000;
+	while (true)
+	{		
+		double dbCurrentLoss = calculateLoss(arrTempW);
+		output << dbCurrentLoss << endl;
+		cout << dbCurrentLoss << endl;
+		if (dbCurrentLoss > dbLoss) break;
+		else dbLoss = dbCurrentLoss;
+		// search the direction of min gradient
+		double dbMinGradient = 100000;
+		int nMinGradientIndex = -1;
+		int nDirection = rand() / (double)RAND_MAX*nWLen;
+		while (true)
+		{
+			arrTempW[nDirection] += dbStep;
+			double dbGradient = dbCurrentLoss - calculateLoss(arrTempW);
+			if (dbGradient>0)
+			{
+				break;
+			}
+			arrTempW[nDirection] -= dbStep;
+			nDirection = rand() / (double)RAND_MAX*nWLen;
+		}
+	}
+
+	for (size_t i = 0; i < nWLen; i++)
+	{
+		_arrW[i] = arrTempW[i];
+	}
+
+	// try every direction is not feasible
+	while (false)
+	{
+		double dbCurrentLoss = calculateLoss(arrTempW);
+		output<< dbCurrentLoss << endl;
+		cout << dbCurrentLoss << endl;
+		// search the direction of min gradient
+		double dbMinGradient = 100000;
+		int nMinGradientIndex = -1;
+		for (size_t i = 0; i < nWLen; i++)
+		{
+			arrTempW[i] += dbStep;
+			double dbGradient = dbCurrentLoss - calculateLoss(arrTempW);
+			arrGradient[i] = dbGradient;
+			if (dbGradient<dbMinGradient)
+			{
+				dbMinGradient = dbGradient;
+				nMinGradientIndex = i;
+			}
+			arrTempW[i] -= dbStep;
+		}
+		arrTempW[nMinGradientIndex] += dbStep;
+
+	}
+
+
+
+
+
+	delete[] arrTempW;
+}
 
 
 

@@ -47,13 +47,16 @@ private:
 	void initW();
 
 	// calculate loss of current w
-	double calculateLoss();
+	double calculateLoss(const double *pW);
 
 	// calculate data loss of the nIndex's image
-	double calculateDataLoss(int nIndex);
+	double calculateDataLoss(int nIndex, const double* pW);
 
 	// calculate the score vector of the nIndex's image
-	void calculateScore(int nIndex, double* arrScore);
+	void calculateScore(int nIndex, const double* pW, double* arrScore);
+
+	// training using dataset of the given index
+	void train(int nDataSetIndex);
 
 private:
 	static const int g_nImgRow = 100;
