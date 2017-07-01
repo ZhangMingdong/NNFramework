@@ -13,7 +13,7 @@
 using namespace std;
 
 const int g_nFocusedIndex = 1;
-ofstream output("log.txt");
+ofstream output("log_20170701.txt");
 
 ImageLayer::ImageLayer() :_dataTexture(0)
 , _dataTextureMean(0)
@@ -33,10 +33,10 @@ ImageLayer::ImageLayer() :_dataTexture(0)
 	// initialize W
 	initW();
 
-	train(g_nFocusedIndex);
+//	train(g_nFocusedIndex);
 
 	// calculate the loss
-	calculateLoss(_arrW);
+//	calculateLoss(_arrW);
 
 	// test result
 	test(1);
@@ -193,6 +193,7 @@ void ImageLayer::test(int nTestIndex, EnumTestMode mode) {
 		break;
 	}
 //	cout << "the right rate is: " << nRight / (double)g_nImgs << endl;
+	output << nRight / (double)g_nImgs << endl;
 	cout << nRight / (double)g_nImgs << endl;
 }
 
@@ -319,7 +320,7 @@ void ImageLayer::initW() {
 	for (size_t i = 0; i < nWLen; i++)
 	{
 		_arrW[i] = 1;
-		_arrW[i] = rand()/(double)RAND_MAX;
+//		_arrW[i] = rand()/(double)RAND_MAX;
 	}
 }
 
@@ -416,38 +417,35 @@ int ImageLayer::classifyByW(int nIndex) {
 }
 
 void ImageLayer::train(int nDataSetIndex) {
-	double dbStep = 0.01;
+	double dbStep = 0.1;
 	// current loss function value
 	int nWLen = g_nClass*(g_nPixels * 3 + 1);
 	double* arrTempW = new double[nWLen];
-	double* arrGradient = new double[nWLen];
 	for (size_t i = 0; i < nWLen; i++)
 	{
 		arrTempW[i] = _arrW[i];
-		arrGradient[i] = 0;
 	}
 	double dbLoss = 100000;
+	int nFailTimes = 0;
 	while (true)
 	{		
 		double dbCurrentLoss = calculateLoss(arrTempW);
 		output << dbCurrentLoss << endl;
 		cout << dbCurrentLoss << endl;
-		if (dbCurrentLoss > dbLoss) break;
-		else dbLoss = dbCurrentLoss;
-		// search the direction of min gradient
-		double dbMinGradient = 100000;
-		int nMinGradientIndex = -1;
 		int nDirection = rand() / (double)RAND_MAX*nWLen;
-		while (true)
-		{
-			arrTempW[nDirection] += dbStep;
-			double dbGradient = dbCurrentLoss - calculateLoss(arrTempW);
-			if (dbGradient>0)
+
+		arrTempW[nDirection] += dbStep;
+		double dbGradient = dbCurrentLoss - calculateLoss(arrTempW);
+		if (dbGradient < 0) {
+			arrTempW[nDirection] -= dbStep;
+			nFailTimes++;
+			if (nFailTimes>10000|| dbCurrentLoss<3000)
 			{
 				break;
-			}
-			arrTempW[nDirection] -= dbStep;
-			nDirection = rand() / (double)RAND_MAX*nWLen;
+			}			
+		}
+		else {
+			nFailTimes = 0;
 		}
 	}
 
@@ -455,35 +453,6 @@ void ImageLayer::train(int nDataSetIndex) {
 	{
 		_arrW[i] = arrTempW[i];
 	}
-
-	// try every direction is not feasible
-	while (false)
-	{
-		double dbCurrentLoss = calculateLoss(arrTempW);
-		output<< dbCurrentLoss << endl;
-		cout << dbCurrentLoss << endl;
-		// search the direction of min gradient
-		double dbMinGradient = 100000;
-		int nMinGradientIndex = -1;
-		for (size_t i = 0; i < nWLen; i++)
-		{
-			arrTempW[i] += dbStep;
-			double dbGradient = dbCurrentLoss - calculateLoss(arrTempW);
-			arrGradient[i] = dbGradient;
-			if (dbGradient<dbMinGradient)
-			{
-				dbMinGradient = dbGradient;
-				nMinGradientIndex = i;
-			}
-			arrTempW[i] -= dbStep;
-		}
-		arrTempW[nMinGradientIndex] += dbStep;
-
-	}
-
-
-
-
 
 	delete[] arrTempW;
 }
