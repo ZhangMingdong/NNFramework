@@ -54,3 +54,13 @@ static int g_nHiddenLayers = 3;
 static int g_nOutputLayers = 1;
 
 */
+
+
+static const int g_nImgRow = 100;
+static const int g_nImgCol = 100;
+static const int g_nRow = 32;
+static const int g_nCol = 32;
+static const int g_nClass = 10;
+static const int g_nImgs = g_nImgRow*g_nImgCol;
+static const int g_nPixels = g_nRow*g_nCol;
+static const int g_nFiles = 6;					// number of files

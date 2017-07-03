@@ -55,4 +55,11 @@ public:
 	void LoadInputImage(NNImage *img);
 	// Set up the target vector for this image.
 	void LoadTarget(NNImage *img);
+	// for new data set
+	void LoadTargetNew(NNImage *img);
+
+
+
+	// calculate the performance on the image list for new dataset
+	void CalculatePerformanceNew(NNImageList *il, int list_errors);
 };

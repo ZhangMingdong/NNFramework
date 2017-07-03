@@ -1058,3 +1058,68 @@ void BPNeuralNetwork::LoadTarget(NNImage *img)
 
 
 }
+
+
+void BPNeuralNetwork::LoadTargetNew(NNImage *img)
+{
+	for (size_t i = 0; i < g_nClass; i++)
+	{
+		this->target[i] = TARGET_LOW;
+	}
+	this->target[img->_nLabel] = TARGET_HIGH;
+
+}
+
+
+void BPNeuralNetwork::CalculatePerformanceNew(NNImageList *il, int list_errors)
+{
+
+	double err = 0.0;			// total error
+	int correct = 0;			// number of correct
+	int n = il->size();
+	if (n <= 0) {
+		if (!list_errors)
+			printf("0.0 0.0 ");
+		return;
+	}
+
+	// calculate every input image
+	for (int i = 0; i < n; i++) {
+		// 0.Load the image into the input layer.
+		LoadInputImage((*il)[i]);
+
+		// 1.Run the network on this input.
+		this->FeedForward();
+
+		/*** Set up the target vector for this image. **/
+		this->LoadTargetNew((*il)[i]);
+
+		/*** See if it got it right. ***/
+		//chaged by sjt here.
+		//if (evaluate_performance(this, &val, 0)) {
+
+		double val;
+		if (evaluate_performance(this, &val)) {
+			correct++;
+		}
+		else if (list_errors) {
+			printf("%s - outputs ", (*il)[i]->_arrName);
+			for (int j = 1; j <= this->output_n; j++) {
+				printf("%.3f ", this->output_units[j]);
+			}
+			putchar('\n');
+		}
+		err += val;
+	}
+
+	// calculate average
+	err = err / (double)n;
+
+	if (!list_errors)
+		/* bthom==================================
+		this line prints part of the ouput line
+		discussed in section 3.1.2 of homework
+		*/
+		printf("%g %g ", ((double)correct / (double)n) * 100.0, err);
+
+}

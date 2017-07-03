@@ -28,5 +28,8 @@ public:
 
 struct NNImageList : public std::vector<NNImage*> {
 public:
+	// original method to load the data from file
 	void LoadFromFile(char *filename);
+	// method for new data
+	void LoadFromFileNew(const char *filename);
 };

@@ -1,6 +1,6 @@
 #include "NNImage.h"
-
-
+#include <qfile.h>
+#include "setting.h"
 
 NNImage::NNImage()
 {
@@ -103,7 +103,7 @@ NNImage* NNImage::Read(char *filename)
 		return(NULL);
 	}
 
-	newptr->_arrData = (int *)malloc((unsigned)(newptr->_nTuls*nr * nc * sizeof(int)));
+	newptr->_arrData = new int[newptr->_nTuls*nr * nc];
 	if (newptr->_arrData == NULL) {
 		printf("IMGOPEN: Couldn't allocate space for image data\n");
 		fclose(pgm);
@@ -155,25 +155,23 @@ NNImage* NNImage::Read(char *filename)
 
 void NNImageList::LoadFromFile(char *filename)
 {
-	NNImage *iimg;
-	FILE *fp;
 	char buf[2000];
 
 	if (filename[0] == '\0') {
 		printf("IMGL_LOAD_IMAGES_FROM_TEXTFILE: Invalid file '%s'\n", filename);
 		return;
 	}
-
-	if ((fp = fopen(filename, "r")) == NULL) {
+	FILE *fp = fopen(filename, "r");
+	if (fp == NULL) {
 		printf("IMGL_LOAD_IMAGES_FROM_TEXTFILE: Couldn't open '%s'\n", filename);
 		return;
 	}
 
 	while (fgets(buf, 1999, fp) != NULL) {
-
 		imgl_munge_name(buf);
 		printf("Loading '%s'...", buf);  fflush(stdout);
-		if ((iimg = NNImage::Read(buf)) == 0) {
+		NNImage *iimg = NNImage::Read(buf);
+		if (iimg == 0) {
 			printf("Couldn't open '%s'\n", buf);
 		}
 		else {
@@ -186,3 +184,39 @@ void NNImageList::LoadFromFile(char *filename)
 	fclose(fp);
 }
 
+
+void NNImageList::LoadFromFileNew(const char *filename) {
+	// length of the data is 30730000
+	// which is (1+1024*3)*10000
+	QFile file(filename);
+	if (!file.open(QIODevice::ReadOnly)) {
+		return;
+	}
+
+	char* temp = new char[file.size()];
+	file.read(temp, file.size());
+
+	unsigned char* arrData = (unsigned char*)temp;
+	int x = file.size();
+	for (size_t i = 0; i < g_nImgs; i++)
+	{
+		NNImage *iimg = new NNImage();
+		iimg->_nLabel = *arrData++;
+		iimg->_nRows = g_nRow;
+		iimg->_nCols = g_nCol;
+		iimg->_nTuls = 3;
+		iimg->_arrData = new int[iimg->_nRows*iimg->_nCols*iimg->_nTuls];
+		for (size_t k = 0; k < 3; k++)
+		{
+			for (int i = 0; i < g_nRow; i++)
+			{
+				for (size_t j = 0; j < g_nCol; j++)
+				{
+					iimg->SetPixel(i, j, k, *arrData++);
+				}
+
+			}
+		}
+		this->push_back(iimg);
+	}
+}

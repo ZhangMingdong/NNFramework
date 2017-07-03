@@ -24,7 +24,7 @@ ImageLayer::ImageLayer() :_dataTexture(0)
 , _dbLambda(1.0)
 {
 	// 0.read data
-	const char* _strFile1 = "..\\cifar-10-batches-bin\\data_batch_2.bin";
+	const char* _strFile1 = "..\\cifar-10-batches-bin\\data_batch_1.bin";
 	const char* _strFile0 = "..\\cifar-10-batches-bin\\test_batch.bin";
 	readData(1, _strFile1);
 	readData(0, _strFile0);
@@ -478,17 +478,15 @@ void ImageLayer::trainNN(int nDataSetIndex) {
 	/*** Create imagelists ***/
 	NNImageList *trainlist = new NNImageList();
 	NNImageList *test1list = new NNImageList();
-	NNImageList *test2list = new NNImageList();
 
-	char* netname = g_pModelFileName;
-	char* trainname = "trainset/all_scale1_train.list";
-	char* test1name = "trainset/all_scale1_test1.list";
-	char* test2name = "trainset/all_scale1_test2.list";
+	char* netname = "myNewNet.net";
+
+	const char* _strFile1 = "..\\cifar-10-batches-bin\\data_batch_3.bin";
+	const char* _strFile0 = "..\\cifar-10-batches-bin\\test_batch.bin";
 
 	// load train, test1, or test2 sets
-	trainlist->LoadFromFile(trainname);
-	test1list->LoadFromFile(test1name);
-	test2list->LoadFromFile(test2name);
+	trainlist->LoadFromFileNew(_strFile1);
+	test1list->LoadFromFileNew(_strFile0);
 
 
 	/*** Initialize the neural net package ***/
@@ -497,7 +495,6 @@ void ImageLayer::trainNN(int nDataSetIndex) {
 	/*** Show number of images in train, test1, test2 ***/
 	printf("%d images in training set\n", trainlist->size());
 	printf("%d images in test1 set\n", test1list->size());
-	printf("%d images in test2 set\n", test2list->size());
 
 	// 0.Create network
 	BPNeuralNetwork *net = BPNeuralNetwork::Read(netname);
@@ -514,7 +511,7 @@ void ImageLayer::trainNN(int nDataSetIndex) {
 			make a net with:
 			imgsize inputs, 4 hiden units, and 1 output unit
 			*/
-			net = BPNeuralNetwork::Create(imgsize, g_nHiddenLayers, g_nOutputLayers);
+			net = BPNeuralNetwork::Create(imgsize, 10, 10);
 		}
 		else {
 			printf("Need some images to train on, use -t\n");
@@ -529,17 +526,14 @@ void ImageLayer::trainNN(int nDataSetIndex) {
 
 	/*** Print out performance before any epochs have been completed. ***/
 	printf("0 0.0 ");
-	net->CalculatePerformance(trainlist, 0);
-	net->CalculatePerformance(test1list, 0);
-	net->CalculatePerformance(test2list, 0);
+	net->CalculatePerformanceNew(trainlist, 0);
+	net->CalculatePerformanceNew(test1list, 0);
 	printf("\n");  fflush(stdout);
 	if (list_errors) {
 		printf("\nFailed to classify the following images from the training set:\n");
-		net->CalculatePerformance(trainlist, 1);
+		net->CalculatePerformanceNew(trainlist, 1);
 		printf("\nFailed to classify the following images from the test set 1:\n");
-		net->CalculatePerformance(test1list, 1);
-		printf("\nFailed to classify the following images from the test set 2:\n");
-		net->CalculatePerformance(test2list, 1);
+		net->CalculatePerformanceNew(test1list, 1);
 	}
 
 	// 1.train
@@ -556,7 +550,7 @@ void ImageLayer::trainNN(int nDataSetIndex) {
 			net->LoadInputImage((*trainlist)[i]);
 
 			/** Set up target vector for image i **/
-			net->LoadTarget((*trainlist)[i]);
+			net->LoadTargetNew((*trainlist)[i]);
 
 			/** Run backprop, learning rate 0.3, momentum 0.3 **/
 			net->Train(0.3, 0.3, &out_err, &hid_err);
@@ -566,9 +560,8 @@ void ImageLayer::trainNN(int nDataSetIndex) {
 		printf("%g ", sumerr);
 
 		/*** Evaluate performance on train, test, test2, and print perf ***/
-		net->CalculatePerformance(trainlist, 0);
-		net->CalculatePerformance(test1list, 0);
-		net->CalculatePerformance(test2list, 0);
+		net->CalculatePerformanceNew(trainlist, 0);
+		net->CalculatePerformanceNew(test1list, 0);
 		printf("\n");  fflush(stdout);
 
 		/*** Save network every 'savedelta' epochs ***/
