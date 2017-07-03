@@ -58,6 +58,9 @@ private:
 	// training using dataset of the given index
 	void train(int nDataSetIndex);
 
+	// train neural network
+	void trainNN(int nDataSetIndex);
+
 private:
 	static const int g_nImgRow = 100;
 	static const int g_nImgCol = 100;

@@ -3,11 +3,13 @@
 #include <QGLWidget>
 #include <gl/GLU.h>
 
-
 #include <QFile>
 
 #include <iostream>
 #include <fstream>
+
+#include "BPNeuralNetwork.h"
+#include "NNImage.h"
 
 
 using namespace std;
@@ -28,22 +30,30 @@ ImageLayer::ImageLayer() :_dataTexture(0)
 	readData(0, _strFile0);
 
 	// 1.statistic
-	statistic();
+//	statistic();
 
 	// initialize W
-	initW();
+//	initW();
 
-//	train(g_nFocusedIndex);
 
 	// calculate the loss
+	/*
+	for (size_t i = 0; i < 100; i++)
+	{
+		train(g_nFocusedIndex);
+		// test result
+		test(1);
+		test(0);
+
+	}*/
 //	calculateLoss(_arrW);
 
-	// test result
-	test(1);
-	test(0);
 
 	// 2.test
 //	test(0,TM_Mean);
+
+
+	trainNN(g_nFocusedIndex);
 
 	// generate texture
 	generateTexture();
@@ -417,7 +427,7 @@ int ImageLayer::classifyByW(int nIndex) {
 }
 
 void ImageLayer::train(int nDataSetIndex) {
-	double dbStep = 0.1;
+	double dbStep = 0.0001;
 	// current loss function value
 	int nWLen = g_nClass*(g_nPixels * 3 + 1);
 	double* arrTempW = new double[nWLen];
@@ -425,27 +435,26 @@ void ImageLayer::train(int nDataSetIndex) {
 	{
 		arrTempW[i] = _arrW[i];
 	}
-	double dbLoss = 100000;
-	int nFailTimes = 0;
-	while (true)
+	double dbCurrentLoss = calculateLoss(arrTempW);
+	int i = 0;
+	while(i<100)	// run 100 steps
 	{		
-		double dbCurrentLoss = calculateLoss(arrTempW);
-		output << dbCurrentLoss << endl;
-		cout << dbCurrentLoss << endl;
+		// generate a direction randomly, and change w a step
 		int nDirection = rand() / (double)RAND_MAX*nWLen;
-
 		arrTempW[nDirection] += dbStep;
-		double dbGradient = dbCurrentLoss - calculateLoss(arrTempW);
-		if (dbGradient < 0) {
+
+		// calculate bias of loss function
+		double dbNewLoss= calculateLoss(arrTempW);
+
+		if (dbNewLoss>dbCurrentLoss) {
 			arrTempW[nDirection] -= dbStep;
-			nFailTimes++;
-			if (nFailTimes>10000|| dbCurrentLoss<3000)
-			{
-				break;
-			}			
+//			cout << "fail" << endl;;
 		}
 		else {
-			nFailTimes = 0;
+			i++;
+			dbCurrentLoss = dbNewLoss;
+			output << dbCurrentLoss << endl;
+			cout << dbCurrentLoss << endl;
 		}
 	}
 
@@ -458,6 +467,124 @@ void ImageLayer::train(int nDataSetIndex) {
 }
 
 
+void ImageLayer::trainNN(int nDataSetIndex) {
+
+	int seed = 102194;   /*** today's date seemed like a good default ***/
+	int epochs = 100;
+	int savedelta = 100;
+	int list_errors = 0;
+
+
+	/*** Create imagelists ***/
+	NNImageList *trainlist = new NNImageList();
+	NNImageList *test1list = new NNImageList();
+	NNImageList *test2list = new NNImageList();
+
+	char* netname = g_pModelFileName;
+	char* trainname = "trainset/all_scale1_train.list";
+	char* test1name = "trainset/all_scale1_test1.list";
+	char* test2name = "trainset/all_scale1_test2.list";
+
+	// load train, test1, or test2 sets
+	trainlist->LoadFromFile(trainname);
+	test1list->LoadFromFile(test1name);
+	test2list->LoadFromFile(test2name);
+
+
+	/*** Initialize the neural net package ***/
+	BPNeuralNetwork::Initialize(seed);
+
+	/*** Show number of images in train, test1, test2 ***/
+	printf("%d images in training set\n", trainlist->size());
+	printf("%d images in test1 set\n", test1list->size());
+	printf("%d images in test2 set\n", test2list->size());
+
+	// 0.Create network
+	BPNeuralNetwork *net = BPNeuralNetwork::Read(netname);
+
+	int train_n = trainlist->size();
+
+	/*** Read network in if it exists, otherwise make one from scratch ***/
+	if (net == NULL) {
+		if (train_n > 0) {
+			printf("Creating new network '%s'\n", netname);
+			NNImage *iimg = (*trainlist)[0];
+			int imgsize = iimg->_nRows*iimg->_nCols*iimg->_nTuls;
+			/* bthom ===========================
+			make a net with:
+			imgsize inputs, 4 hiden units, and 1 output unit
+			*/
+			net = BPNeuralNetwork::Create(imgsize, g_nHiddenLayers, g_nOutputLayers);
+		}
+		else {
+			printf("Need some images to train on, use -t\n");
+			return;
+		}
+	}
+
+	if (epochs > 0) {
+		printf("Training underway (going to %d epochs)\n", epochs);
+		printf("Will save network every %d epochs\n", savedelta);
+	}
+
+	/*** Print out performance before any epochs have been completed. ***/
+	printf("0 0.0 ");
+	net->CalculatePerformance(trainlist, 0);
+	net->CalculatePerformance(test1list, 0);
+	net->CalculatePerformance(test2list, 0);
+	printf("\n");  fflush(stdout);
+	if (list_errors) {
+		printf("\nFailed to classify the following images from the training set:\n");
+		net->CalculatePerformance(trainlist, 1);
+		printf("\nFailed to classify the following images from the test set 1:\n");
+		net->CalculatePerformance(test1list, 1);
+		printf("\nFailed to classify the following images from the test set 2:\n");
+		net->CalculatePerformance(test2list, 1);
+	}
+
+	// 1.train
+	for (int epoch = 1; epoch <= epochs; epoch++) {
+
+		printf("%d ", epoch);
+
+		double out_err;
+		double hid_err;
+		double sumerr = 0.0;
+		for (int i = 0; i < train_n; i++) {
+
+			/** Set up input units on net with image i **/
+			net->LoadInputImage((*trainlist)[i]);
+
+			/** Set up target vector for image i **/
+			net->LoadTarget((*trainlist)[i]);
+
+			/** Run backprop, learning rate 0.3, momentum 0.3 **/
+			net->Train(0.3, 0.3, &out_err, &hid_err);
+
+			sumerr += (out_err + hid_err);
+		}
+		printf("%g ", sumerr);
+
+		/*** Evaluate performance on train, test, test2, and print perf ***/
+		net->CalculatePerformance(trainlist, 0);
+		net->CalculatePerformance(test1list, 0);
+		net->CalculatePerformance(test2list, 0);
+		printf("\n");  fflush(stdout);
+
+		/*** Save network every 'savedelta' epochs ***/
+		if (!(epoch % savedelta)) {
+			net->Save(netname);
+		}
+	}
+	printf("\n");
+
+	// 3.save the network
+	if (epochs > 0) {
+		net->Save(netname);
+	}
+	delete net;
+
+}
 
 
 
