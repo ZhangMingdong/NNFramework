@@ -169,7 +169,7 @@ void NNImageList::LoadFromFile(char *filename)
 
 	while (fgets(buf, 1999, fp) != NULL) {
 		imgl_munge_name(buf);
-		printf("Loading '%s'...", buf);  fflush(stdout);
+		printf("Loading '%s'...", buf); 
 		NNImage *iimg = NNImage::Read(buf);
 		if (iimg == 0) {
 			printf("Couldn't open '%s'\n", buf);
@@ -178,7 +178,6 @@ void NNImageList::LoadFromFile(char *filename)
 			this->push_back(iimg);
 			printf("done\n");
 		}
-		fflush(stdout);
 	}
 
 	fclose(fp);
@@ -214,7 +213,6 @@ void NNImageList::LoadFromFileNew(const char *filename) {
 				{
 					iimg->SetPixel(i, j, k, *arrData++);
 				}
-
 			}
 		}
 		this->push_back(iimg);

@@ -10,12 +10,14 @@
 
 #include "BPNeuralNetwork.h"
 #include "NNImage.h"
-
+//#define NOT_USE_ESIST_MODEL
 
 using namespace std;
 
 const int g_nFocusedIndex = 1;
 ofstream output("log_20170701.txt");
+
+
 
 ImageLayer::ImageLayer() :_dataTexture(0)
 , _dataTextureMean(0)
@@ -469,66 +471,76 @@ void ImageLayer::train(int nDataSetIndex) {
 
 void ImageLayer::trainNN(int nDataSetIndex) {
 
-	int seed = 102194;   /*** today's date seemed like a good default ***/
-	int epochs = 100;
-	int savedelta = 100;
-	int list_errors = 0;
+	int nSeed = 102194;			/*** today's date seemed like a good default ***/
+	int nEpochs = 5000;
+	int nSavedDelta = 100;		// set the frequency for saving the model 
+	int list_errors = 0;		// whether output the error list in each step
 
+	char* strNetName = "myNewNet.net";
 
-	/*** Create imagelists ***/
+	// 1.create image list
+	const char* _strFile1 = "..\\cifar-10-batches-bin\\data_batch_1.bin";
+	const char* _strFile0 = "..\\cifar-10-batches-bin\\test_batch.bin";
 	NNImageList *trainlist = new NNImageList();
 	NNImageList *test1list = new NNImageList();
-
-	char* netname = "myNewNet.net";
-
-	const char* _strFile1 = "..\\cifar-10-batches-bin\\data_batch_3.bin";
-	const char* _strFile0 = "..\\cifar-10-batches-bin\\test_batch.bin";
-
-	// load train, test1, or test2 sets
+	// load images
 	trainlist->LoadFromFileNew(_strFile1);
 	test1list->LoadFromFileNew(_strFile0);
-
-
-	/*** Initialize the neural net package ***/
-	BPNeuralNetwork::Initialize(seed);
-
 	/*** Show number of images in train, test1, test2 ***/
 	printf("%d images in training set\n", trainlist->size());
 	printf("%d images in test1 set\n", test1list->size());
 
-	// 0.Create network
-	BPNeuralNetwork *net = BPNeuralNetwork::Read(netname);
-
 	int train_n = trainlist->size();
 
+	// 2.Initialize and create the neural net
+	BPNeuralNetwork::Initialize(nSeed);
+#ifdef NOT_USE_ESIST_MODEL
+	BPNeuralNetwork *net = NULL;
+	if (train_n > 0) {
+		printf("Creating new network '%s'\n", strNetName);
+		NNImage *iimg = (*trainlist)[0];
+		int imgsize = iimg->_nRows*iimg->_nCols*iimg->_nTuls;
+		/* bthom ===========================
+		make a net with:
+		imgsize inputs, 4 hiden units, and 1 output unit
+		*/
+		net = BPNeuralNetwork::Create(imgsize, 10, 10);
+	}
+	else {
+		printf("Need some images to train on, use -t\n");
+		return;
+	}
+#else
+	BPNeuralNetwork *net = BPNeuralNetwork::Read(strNetName);
 	/*** Read network in if it exists, otherwise make one from scratch ***/
 	if (net == NULL) {
 		if (train_n > 0) {
-			printf("Creating new network '%s'\n", netname);
+			printf("Creating new network '%s'\n", strNetName);
 			NNImage *iimg = (*trainlist)[0];
 			int imgsize = iimg->_nRows*iimg->_nCols*iimg->_nTuls;
 			/* bthom ===========================
 			make a net with:
 			imgsize inputs, 4 hiden units, and 1 output unit
 			*/
-			net = BPNeuralNetwork::Create(imgsize, 10, 10);
+			net = BPNeuralNetwork::Create(imgsize, 64, 10);
 		}
 		else {
 			printf("Need some images to train on, use -t\n");
 			return;
 		}
 	}
+#endif
 
-	if (epochs > 0) {
-		printf("Training underway (going to %d epochs)\n", epochs);
-		printf("Will save network every %d epochs\n", savedelta);
+	if (nEpochs > 0) {
+		printf("Training underway (going to %d epochs)\n", nEpochs);
+		printf("Will save network every %d epochs\n", nSavedDelta);
 	}
 
-	/*** Print out performance before any epochs have been completed. ***/
+	// 3.Print out performance before any epochs have been completed.
 	printf("0 0.0 ");
 	net->CalculatePerformanceNew(trainlist, 0);
 	net->CalculatePerformanceNew(test1list, 0);
-	printf("\n");  fflush(stdout);
+	printf("\n"); 
 	if (list_errors) {
 		printf("\nFailed to classify the following images from the training set:\n");
 		net->CalculatePerformanceNew(trainlist, 1);
@@ -536,8 +548,8 @@ void ImageLayer::trainNN(int nDataSetIndex) {
 		net->CalculatePerformanceNew(test1list, 1);
 	}
 
-	// 1.train
-	for (int epoch = 1; epoch <= epochs; epoch++) {
+	// 4.train
+	for (int epoch = 1; epoch <= nEpochs; epoch++) {
 
 		printf("%d ", epoch);
 
@@ -562,18 +574,18 @@ void ImageLayer::trainNN(int nDataSetIndex) {
 		/*** Evaluate performance on train, test, test2, and print perf ***/
 		net->CalculatePerformanceNew(trainlist, 0);
 		net->CalculatePerformanceNew(test1list, 0);
-		printf("\n");  fflush(stdout);
+		printf("\n");  
 
 		/*** Save network every 'savedelta' epochs ***/
-		if (!(epoch % savedelta)) {
-			net->Save(netname);
+		if (!(epoch % nSavedDelta)) {
+			net->Save(strNetName);
 		}
 	}
 	printf("\n");
 
-	// 3.save the network
-	if (epochs > 0) {
-		net->Save(netname);
+	// 5.save the network
+	if (nEpochs > 0) {
+		net->Save(strNetName);
 	}
 	delete net;
 

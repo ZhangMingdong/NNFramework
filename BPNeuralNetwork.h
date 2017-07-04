@@ -44,6 +44,11 @@ public:
 	// initialize the random seed
 	static void Initialize(unsigned int seed);
 public:
+	/* 
+		train the network for one epoch
+			eo: error of output layer
+			eh: error of hidden layer
+	*/
 	void Train(double eta, double dmomentum, double *eo, double *eh);
 	// run the network
 	void FeedForward();
@@ -62,4 +67,7 @@ public:
 
 	// calculate the performance on the image list for new dataset
 	void CalculatePerformanceNew(NNImageList *il, int list_errors);
+
+private:
+	int evaluatePerformance(double *err);
 };

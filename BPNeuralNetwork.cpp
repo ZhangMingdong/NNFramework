@@ -12,7 +12,6 @@
 #define TARGET_HIGH 0.9
 #define TARGET_LOW 0.1
 
-#define ABS(x)          (((x) > 0.0) ? (x) : (-(x)))
 
 #define fastcopy(to,from,len)\
 {\
@@ -37,17 +36,12 @@ double dpn1()
 }
 
 /*** The squashing function.  Currently, it's a sigmoid. ***/
-
 double squash(double x)
 {
 	return (1.0 / (1.0 + exp(-x)));
 }
 
-
-
-
 /*** Allocate 2d array of doubles ***/
-
 double** Create2DArray(int m, int n)
 {
 	double** buf = new double*[m];
@@ -58,7 +52,6 @@ double** Create2DArray(int m, int n)
 	return buf;
 }
 
-
 void bpnn_randomize_weights(double **w, int m, int n)
 {
 	for (int i = 0; i <= m; i++) {
@@ -67,7 +60,6 @@ void bpnn_randomize_weights(double **w, int m, int n)
 		}
 	}
 }
-
 
 void bpnn_zero_weights(double **w, int m, int n)
 {
@@ -78,13 +70,70 @@ void bpnn_zero_weights(double **w, int m, int n)
 	}
 }
 
+void bpnn_layerforward(double *l1, double *l2, double **conn, int n1, int n2)
+{
+	/*** Set up thresholding unit ***/
+	l1[0] = 1.0;
+
+	/*** For each unit in second layer ***/
+	for (int j = 1; j <= n2; j++) {
+
+		/*** Compute weighted sum of its inputs ***/
+		double sum = 0.0;
+		for (int k = 0; k <= n1; k++) {
+			sum += conn[k][j] * l1[k];
+		}
+		l2[j] = squash(sum);
+	}
+
+}
+
+void bpnn_output_error(double *delta, double *target, double *output, int nj, double *err)
+{
+	double errsum = 0.0;
+	for (int j = 1; j <= nj; j++) {
+		double o = output[j];
+		double t = target[j];
+		delta[j] = o * (1.0 - o) * (t - o);
+		errsum += abs(delta[j]);
+	}
+	*err = errsum;
+}
+
+void bpnn_hidden_error(double *delta_h, int nh, double *delta_o, int no, double **who, double *hidden, double *err)
+{
+	double errsum = 0.0;
+	for (int j = 1; j <= nh; j++) {
+		double h = hidden[j];
+		double sum = 0.0;
+		for (int k = 1; k <= no; k++) {
+			sum += delta_o[k] * who[j][k];
+		}
+		delta_h[j] = h * (1.0 - h) * sum;
+		errsum += abs(delta_h[j]);
+	}
+	*err = errsum;
+}
+
+void bpnn_adjust_weights(double *delta, int ndelta, double *ly, int nly, double **w, double **oldw, double eta, double momentum)
+{
+	ly[0] = 1.0;
+	for (int j = 1; j <= ndelta; j++) {
+		for (int k = 0; k <= nly; k++) {
+			double new_dw = ((eta * delta[j] * ly[k]) + (momentum * oldw[k][j]));
+			w[k][j] += new_dw;
+			oldw[k][j] = new_dw;
+		}
+	}
+}
+
+
 
 void BPNeuralNetwork::Initialize(unsigned int seed)
 {
 	printf("Random number generator seed: %d\n", seed);
 	srand(seed);
 }
-
 
 BPNeuralNetwork::BPNeuralNetwork(int n_in, int n_hidden, int n_out)
 {
@@ -107,130 +156,37 @@ BPNeuralNetwork::BPNeuralNetwork(int n_in, int n_hidden, int n_out)
 	this->hidden_prev_weights = Create2DArray(n_hidden + 1, n_out + 1);
 }
 
-
-
-
-
-
-
-void bpnn_layerforward(double *l1, double *l2, double **conn, int n1, int n2)
-{
-	/*** Set up thresholding unit ***/
-	l1[0] = 1.0;
-
-	/*** For each unit in second layer ***/
-	for (int j = 1; j <= n2; j++) {
-
-		/*** Compute weighted sum of its inputs ***/
-		double sum = 0.0;
-		for (int k = 0; k <= n1; k++) {
-			sum += conn[k][j] * l1[k];
-		}
-		l2[j] = squash(sum);
-	}
-
-}
-
-
-void bpnn_output_error(double *delta, double *target, double *output, int nj, double *err)
-{
-	int j;
-	double o, t, errsum;
-
-	errsum = 0.0;
-	for (j = 1; j <= nj; j++) {
-		o = output[j];
-		t = target[j];
-		delta[j] = o * (1.0 - o) * (t - o);
-		errsum += ABS(delta[j]);
-	}
-	*err = errsum;
-}
-
-
-void bpnn_hidden_error(double *delta_h, int nh, double *delta_o, int no, double **who, double *hidden, double *err)
-{
-	int j, k;
-	double h, sum, errsum;
-
-	errsum = 0.0;
-	for (j = 1; j <= nh; j++) {
-		h = hidden[j];
-		sum = 0.0;
-		for (k = 1; k <= no; k++) {
-			sum += delta_o[k] * who[j][k];
-		}
-		delta_h[j] = h * (1.0 - h) * sum;
-		errsum += ABS(delta_h[j]);
-	}
-	*err = errsum;
-}
-
-
-void bpnn_adjust_weights(double *delta, int ndelta, double *ly, int nly, double **w, double **oldw, double eta, double momentum)
-{
-	double new_dw;
-	int k, j;
-
-	ly[0] = 1.0;
-	for (j = 1; j <= ndelta; j++) {
-		for (k = 0; k <= nly; k++) {
-			new_dw = ((eta * delta[j] * ly[k]) + (momentum * oldw[k][j]));
-			w[k][j] += new_dw;
-			oldw[k][j] = new_dw;
-		}
-	}
-}
-
-
 void BPNeuralNetwork::FeedForward()
 {
-	int in = this->input_n;
-	int hid = this->hidden_n;
-	int out = this->output_n;
+	int nIn = this->input_n;
+	int nHid = this->hidden_n;
+	int nOut = this->output_n;
 
 	/*** Feed forward input activations. ***/
-	bpnn_layerforward(this->input_units, this->hidden_units, this->input_weights, in, hid);
-	bpnn_layerforward(this->hidden_units, this->output_units, this->hidden_weights, hid, out);
+	bpnn_layerforward(this->input_units, this->hidden_units, this->input_weights, nIn, nHid);
+	bpnn_layerforward(this->hidden_units, this->output_units, this->hidden_weights, nHid, nOut);
 
 }
-
 
 void BPNeuralNetwork::Train(double eta, double momentum, double *eo, double *eh)
 {
-	int in, hid, out;
-	double out_err, hid_err;
+	int nIn = this->input_n;
+	int nHid = this->hidden_n;
+	int nOut = this->output_n;
 
-	in = this->input_n;
-	hid = this->hidden_n;
-	out = this->output_n;
-	//   cout<<out<<endl<<endl;
+	// 0.Feed forward input activations.
+	bpnn_layerforward(this->input_units, this->hidden_units, this->input_weights, nIn, nHid);
+	bpnn_layerforward(this->hidden_units, this->output_units, this->hidden_weights, nHid, nOut);
 
-	/*** Feed forward input activations. ***/
-	bpnn_layerforward(this->input_units, this->hidden_units,
-		this->input_weights, in, hid);
-	bpnn_layerforward(this->hidden_units, this->output_units,
-		this->hidden_weights, hid, out);
+	// 1.Compute error and delta on output and hidden units.
+	bpnn_output_error(this->output_delta, this->target, this->output_units, nOut, eo);
+	bpnn_hidden_error(this->hidden_delta, nHid, this->output_delta, nOut, this->hidden_weights, this->hidden_units, eh);
 
-	/*** Compute error on output and hidden units. ***/
-	bpnn_output_error(this->output_delta, this->target, this->output_units,
-		out, &out_err);
-	//   cout<<this->output_units<<endl<<endl;
-	bpnn_hidden_error(this->hidden_delta, hid, this->output_delta, out,
-		this->hidden_weights, this->hidden_units, &hid_err);
-	*eo = out_err;
-	*eh = hid_err;
-
-	/*** Adjust input and hidden weights. ***/
-	bpnn_adjust_weights(this->output_delta, out, this->hidden_units, hid,
-		this->hidden_weights, this->hidden_prev_weights, eta, momentum);
-	bpnn_adjust_weights(this->hidden_delta, hid, this->input_units, in,
-		this->input_weights, this->input_prev_weights, eta, momentum);
+	// 2.Adjust input and hidden weights.
+	bpnn_adjust_weights(this->output_delta, nOut, this->hidden_units, nHid, this->hidden_weights, this->hidden_prev_weights, eta, momentum);
+	bpnn_adjust_weights(this->hidden_delta, nHid, this->input_units, nIn, this->input_weights, this->input_prev_weights, eta, momentum);
 
 }
-
-
-
 
 void BPNeuralNetwork::Save(char *filename)
 {
@@ -316,7 +272,7 @@ BPNeuralNetwork* BPNeuralNetwork::Read(char *filename) {
 	BPNeuralNetwork *newptr = new BPNeuralNetwork(n1, n2, n3);
 
 	printf("'%s' contains a %dx%dx%d network\n", filename, n1, n2, n3);
-	printf("Reading input weights...");  fflush(stdout);
+	printf("Reading input weights...");  
 
 	int memcnt = 0;
 	char *mem = (char *)malloc((unsigned)((n1 + 1) * (n2 + 1) * sizeof(double)));
@@ -329,7 +285,7 @@ BPNeuralNetwork* BPNeuralNetwork::Read(char *filename) {
 	}
 	free(mem);
 
-	printf("Done\nReading hidden weights...");  fflush(stdout);
+	printf("Done\nReading hidden weights...");  
 
 	memcnt = 0;
 	mem = (char *)malloc((unsigned)((n2 + 1) * (n3 + 1) * sizeof(double)));
@@ -343,7 +299,7 @@ BPNeuralNetwork* BPNeuralNetwork::Read(char *filename) {
 	free(mem);
 	fclose(fd);
 
-	printf("Done\n");  fflush(stdout);
+	printf("Done\n"); 
 
 	bpnn_zero_weights(newptr->input_prev_weights, n1, n2);
 	bpnn_zero_weights(newptr->hidden_prev_weights, n2, n3);
@@ -380,42 +336,20 @@ BPNeuralNetwork::~BPNeuralNetwork()
 	free((char *)this->hidden_weights);
 	free((char *)this->hidden_prev_weights);
 }
-int evaluate_performance(BPNeuralNetwork *net, double *err)
+
+int BPNeuralNetwork::evaluatePerformance(double *err)
 {
-	double delta;
+	*err = 0;
+	int nResult = 1;
+	for (size_t i = 1; i <= output_n; i++)
+	{
+		double delta = this->target[i] - this->output_units[i];
 
-	delta = net->target[1] - net->output_units[1];
-
-	*err = (0.5 * delta * delta);
-
-	/*** If the target unit is on... ***/
-	if (net->target[1] > 0.5) {
-
-		/*** If the output unit is on, then we correctly recognized me! ***/
-		if (net->output_units[1] > 0.5) {
-			return (1);
-
-			/*** otherwise, we didn't think it was me... ***/
-		}
-		else {
-			return (0);
-		}
-
-		/*** Else, the target unit is off... ***/
-	}
-	else {
-
-		/*** If the output unit is on, then we mistakenly thought it was me ***/
-		if (net->output_units[1] > 0.5) {
-			return (0);
-
-			/*** else, we correctly realized that it wasn't me ***/
-		}
-		else {
-			return (1);
-		}
+		*err  +=(0.5 * delta * delta);
+		nResult = nResult && (this->target[i] > 0.5 == this->output_units[i] > 0.5);
 	}
 
+	return nResult;
 }
 
 
@@ -450,7 +384,7 @@ void BPNeuralNetwork::CalculatePerformance(NNImageList *il, int list_errors)
 		//if (evaluate_performance(this, &val, 0)) {
 
 		double val;
-		if (evaluate_performance(this, &val)) {
+		if (this->evaluatePerformance(&val)) {
 			correct++;
 		}
 		else if (list_errors) {
@@ -474,7 +408,6 @@ void BPNeuralNetwork::CalculatePerformance(NNImageList *il, int list_errors)
 		printf("%g %g ", ((double)correct / (double)n) * 100.0, err);
 
 }
-
 
 void BPNeuralNetwork::LoadInputImage(NNImage *img)
 {
@@ -1059,24 +992,21 @@ void BPNeuralNetwork::LoadTarget(NNImage *img)
 
 }
 
-
 void BPNeuralNetwork::LoadTargetNew(NNImage *img)
 {
 	for (size_t i = 0; i < g_nClass; i++)
 	{
-		this->target[i] = TARGET_LOW;
+		this->target[i+1] = TARGET_LOW;
 	}
-	this->target[img->_nLabel] = TARGET_HIGH;
+	this->target[img->_nLabel+1] = TARGET_HIGH;
 
 }
 
-
 void BPNeuralNetwork::CalculatePerformanceNew(NNImageList *il, int list_errors)
 {
-
 	double err = 0.0;			// total error
 	int correct = 0;			// number of correct
-	int n = il->size();
+	int n = il->size();			// number of images
 	if (n <= 0) {
 		if (!list_errors)
 			printf("0.0 0.0 ");
@@ -1089,17 +1019,14 @@ void BPNeuralNetwork::CalculatePerformanceNew(NNImageList *il, int list_errors)
 		LoadInputImage((*il)[i]);
 
 		// 1.Run the network on this input.
-		this->FeedForward();
+		FeedForward();
 
-		/*** Set up the target vector for this image. **/
-		this->LoadTargetNew((*il)[i]);
+		// 2.Set up the target vector for this image.
+		LoadTargetNew((*il)[i]);
 
-		/*** See if it got it right. ***/
-		//chaged by sjt here.
-		//if (evaluate_performance(this, &val, 0)) {
-
+		// 3.check the result and loss function
 		double val;
-		if (evaluate_performance(this, &val)) {
+		if (evaluatePerformance(&val)) {
 			correct++;
 		}
 		else if (list_errors) {
