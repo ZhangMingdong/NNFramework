@@ -10,6 +10,8 @@
 
 #include "BPNeuralNetwork.h"
 #include "NNImage.h"
+#include "IMyClassifier.h"
+
 //#define NOT_USE_ESIST_MODEL
 
 using namespace std;
@@ -26,36 +28,28 @@ ImageLayer::ImageLayer() :_dataTexture(0)
 , _dbLambda(1.0)
 {
 	// 0.read data
-	const char* _strFile1 = "..\\cifar-10-batches-bin\\data_batch_1.bin";
-	const char* _strFile0 = "..\\cifar-10-batches-bin\\test_batch.bin";
-	readData(1, _strFile1);
-	readData(0, _strFile0);
-
-	// 1.statistic
-//	statistic();
-
-	// initialize W
-//	initW();
-
-
-	// calculate the loss
-	/*
-	for (size_t i = 0; i < 100; i++)
+	const char* _arrFiles[g_nFiles] = {
+		"..\\cifar-10-batches-bin\\test_batch.bin"
+		,"..\\cifar-10-batches-bin\\data_batch_1.bin"
+		,"..\\cifar-10-batches-bin\\data_batch_2.bin"
+		,"..\\cifar-10-batches-bin\\data_batch_3.bin"
+		,"..\\cifar-10-batches-bin\\data_batch_4.bin"
+		,"..\\cifar-10-batches-bin\\data_batch_5.bin"
+	};
+	for (size_t i = 0; i < g_nFiles; i++)
 	{
-		train(g_nFocusedIndex);
-		// test result
-		test(1);
-		test(0);
+		readData(i, _arrFiles[i]);
+	}
 
-	}*/
-//	calculateLoss(_arrW);
+//	testMeanClassifier();
+//	trainNN(g_nFocusedIndex);
+//	testNearestNeighbor();
+//	testMSVM();
+//	testLossFun();
+//	testRandomLocalSearch();
+	testSoftMax();
 
 
-	// 2.test
-//	test(0,TM_Mean);
-
-
-	trainNN(g_nFocusedIndex);
 
 	// generate texture
 	generateTexture();
@@ -152,18 +146,21 @@ void ImageLayer::statistic() {
 				_arrMean[i][j][k] = 0;
 		}
 	}
-
-	for (size_t i = 0; i < g_nImgs; i++)
+	for (size_t iteF = 1; iteF < g_nFiles; iteF++)
 	{
-		int nClassIndex = _arrLabels[1][i];
-		arrCount[nClassIndex]++;
-
-		for (size_t j = 0; j < g_nPixels; j++)
+		for (size_t i = 0; i < g_nImgs; i++)
 		{
-			for (size_t k = 0; k < 3; k++) {
-				_arrMean[nClassIndex][j][k] += _arrPixels[1][i][j][k];
+			int nClassIndex = _arrLabels[1][i];
+			arrCount[nClassIndex]++;
+
+			for (size_t j = 0; j < g_nPixels; j++)
+			{
+				for (size_t k = 0; k < 3; k++) {
+					_arrMean[nClassIndex][j][k] += _arrPixels[iteF][i][j][k];
+				}
 			}
 		}
+
 	}
 
 	// normalization
@@ -186,7 +183,7 @@ void ImageLayer::test(int nTestIndex, EnumTestMode mode) {
 	case TM_Mean:
 		for (size_t i = 0; i < g_nImgs; i++)
 		{
-			if (classifyByMean(i) == _arrLabels[nTestIndex][i])
+			if (classifyByMean(nTestIndex,i) == _arrLabels[nTestIndex][i])
 			{
 				nRight++;
 			}
@@ -195,7 +192,7 @@ void ImageLayer::test(int nTestIndex, EnumTestMode mode) {
 	case TM_W:
 		for (size_t i = 0; i < g_nImgs; i++)
 		{
-			if (classifyByW(i) == _arrLabels[nTestIndex][i])
+			if (classifyByW(nTestIndex, i) == _arrLabels[nTestIndex][i])
 			{
 				nRight++;
 			}
@@ -209,7 +206,7 @@ void ImageLayer::test(int nTestIndex, EnumTestMode mode) {
 	cout << nRight / (double)g_nImgs << endl;
 }
 
-int ImageLayer::classifyByMean(int nIndex) {
+int ImageLayer::classifyByMean(int nFileIndex, int nImgIndex) {
 	double arrBias[g_nClass];
 	for (size_t i = 0; i < g_nClass; i++) arrBias[i] = 0;
 	bool bL2Distance = true;
@@ -221,7 +218,7 @@ int ImageLayer::classifyByMean(int nIndex) {
 			{
 				for (size_t k = 0; k < 3; k++)
 				{
-					arrBias[i] += pow(_arrPixels[0][nIndex][j][k] - _arrMean[i][j][k],2);
+					arrBias[i] += pow(_arrPixels[nFileIndex][nImgIndex][j][k] - _arrMean[i][j][k],2);
 				}
 			}
 			arrBias[i] = sqrt(arrBias[i]);
@@ -235,7 +232,7 @@ int ImageLayer::classifyByMean(int nIndex) {
 			{
 				for (size_t k = 0; k < 3; k++)
 				{
-					arrBias[i] += abs(_arrPixels[0][nIndex][j][k] - _arrMean[i][j][k]);
+					arrBias[i] += abs(_arrPixels[nFileIndex][nImgIndex][j][k] - _arrMean[i][j][k]);
 				}
 			}
 		}
@@ -325,19 +322,30 @@ void ImageLayer::generateTexture() {
 
 }
 
+void ImageLayer::initW(bool bRandom) {
+	if (true) delete[] _arrW;
 
-void ImageLayer::initW() {
 	int nWLen = g_nClass*(g_nPixels * 3 + 1);
 	_arrW = new double[nWLen];
-	for (size_t i = 0; i < nWLen; i++)
+	if (bRandom) {
+		double dbRange = 10;
+		for (size_t i = 0; i < nWLen; i++)
+		{
+			_arrW[i] = rand() / (double)RAND_MAX*dbRange * 2 - dbRange;
+		}
+	} 
+	else 
 	{
-		_arrW[i] = 1;
-//		_arrW[i] = rand()/(double)RAND_MAX;
+		for (size_t i = 0; i < nWLen; i++)
+		{
+			_arrW[i] = 1;
+		}
 	}
+	
+
 }
 
-
-double ImageLayer::calculateLoss(const double *pW) {
+double ImageLayer::calculateLoss(int nFileIndex, const double *pW) {
 	double dbLossRegularization = 0;
 
 	// loss of the parameter
@@ -351,7 +359,7 @@ double ImageLayer::calculateLoss(const double *pW) {
 	double dbLossData = 0;
 	for (size_t i = 0; i < g_nImgs; i++)
 	{
-		dbLossData += calculateDataLoss(i,pW);
+		dbLossData += calculateDataLoss(nFileIndex,i,pW);
 	}
 	dbLossData /= g_nImgs;
 
@@ -364,13 +372,12 @@ double ImageLayer::calculateLoss(const double *pW) {
 	return dbLoss;
 }
 
-
-double ImageLayer::calculateDataLoss(int nIndex,const double* pW) {
-	int nLabel = _arrLabels[g_nFocusedIndex][nIndex];
+double ImageLayer::calculateDataLoss(int nFileIndex, int nImgIndex,const double* pW) {
+	int nLabel = _arrLabels[nFileIndex][nImgIndex];
 //	cout << "label:" << nLabel << endl;
 	double dbLoss = 0;
 	double arrScore[g_nClass];
-	calculateScore(nIndex,pW, arrScore);
+	calculateScore(nFileIndex,nImgIndex,pW, arrScore);
 //	for (size_t i = 0; i < g_nClass; i++)
 //	{
 //		cout << arrScore[i] << endl;
@@ -389,28 +396,28 @@ double ImageLayer::calculateDataLoss(int nIndex,const double* pW) {
 	return dbLoss;
 }
 
-
-void ImageLayer::calculateScore(int nIndex, const double* pW, double* arrScore) {
-	const double* pWLine = pW;
+void ImageLayer::calculateScore(int nFileIndex, int nImgIndex, const double* pW, double* arrScore) {
+	const double* pWLine = pW; // W of each line
+	// for each line
 	for (size_t i = 0; i < g_nClass; i++)
 	{
+		// initialize the score to 0
 		arrScore[i] = 0;
 		for (size_t j = 0; j < g_nPixels; j++)
 		{
 			for (size_t k = 0; k < 3; k++)
 			{
-				arrScore[i] += (_arrPixels[g_nFocusedIndex][nIndex][j][k] * pWLine[j * 3 + k]);
-			}
-			arrScore[i] += pWLine[g_nPixels*3];			// b_i
+				arrScore[i] += (_arrPixels[nFileIndex][nImgIndex][j][k] * pWLine[j * 3 + k]);
+			}		
 		}
+		arrScore[i] += pWLine[g_nPixels*3];		// b_i
 		pWLine += (g_nPixels * 3 + 1);
 	}
 }
 
-
-int ImageLayer::classifyByW(int nIndex) {
+int ImageLayer::classifyByW(int nFileIndex, int nImgIndex) {
 	double arrScore[g_nClass];
-	calculateScore(nIndex,_arrW, arrScore);
+	calculateScore(nFileIndex,nImgIndex,_arrW, arrScore);
 	int nLabel = 0;
 	double dbMaxScore = arrScore[0];
 	for (size_t i = 1; i < g_nClass; i++)
@@ -428,33 +435,40 @@ int ImageLayer::classifyByW(int nIndex) {
 	return nLabel;	
 }
 
-void ImageLayer::train(int nDataSetIndex) {
-	double dbStep = 0.0001;
-	// current loss function value
+void ImageLayer::trainRandomLocal(int nFileIndex) {
+	double dbStep = 0.001;
+	
 	int nWLen = g_nClass*(g_nPixels * 3 + 1);
 	double* arrTempW = new double[nWLen];
 	for (size_t i = 0; i < nWLen; i++)
 	{
 		arrTempW[i] = _arrW[i];
 	}
-	double dbCurrentLoss = calculateLoss(arrTempW);
-	int i = 0;
-	while(i<100)	// run 100 steps
+	double dbCurrentLoss = calculateLoss(nFileIndex,arrTempW); // current loss function value
+	int nUpdated = 0;		// times of updated
+	int nTried = 0;			// times of trials
+	while(nUpdated<20)	// run 100 steps
 	{		
+		nTried++;
+		if (nTried > 10000) break;		// break while tried 10000 times and cannot find a direction
 		// generate a direction randomly, and change w a step
 		int nDirection = rand() / (double)RAND_MAX*nWLen;
-		arrTempW[nDirection] += dbStep;
+		int nForwardOrBack = rand() / (double)RAND_MAX>0.5 ? 1 : -1;	// move forward or move back
+		arrTempW[nDirection] += dbStep*nForwardOrBack;
 
 		// calculate bias of loss function
-		double dbNewLoss= calculateLoss(arrTempW);
+		double dbNewLoss= calculateLoss(nFileIndex,arrTempW);
+
 
 		if (dbNewLoss>dbCurrentLoss) {
-			arrTempW[nDirection] -= dbStep;
+			arrTempW[nDirection] -= dbStep*nForwardOrBack;
 //			cout << "fail" << endl;;
 		}
 		else {
-			i++;
+			nUpdated++;
 			dbCurrentLoss = dbNewLoss;
+			cout << nTried << "\t";
+			nTried = 0;
 			output << dbCurrentLoss << endl;
 			cout << dbCurrentLoss << endl;
 		}
@@ -468,29 +482,46 @@ void ImageLayer::train(int nDataSetIndex) {
 	delete[] arrTempW;
 }
 
-
 void ImageLayer::trainNN(int nDataSetIndex) {
 
 	int nSeed = 102194;			/*** today's date seemed like a good default ***/
-	int nEpochs = 5000;
+	int nEpochs = 2000;
 	int nSavedDelta = 100;		// set the frequency for saving the model 
 	int list_errors = 0;		// whether output the error list in each step
 
 	char* strNetName = "myNewNet.net";
 
 	// 1.create image list
-	const char* _strFile1 = "..\\cifar-10-batches-bin\\data_batch_1.bin";
 	const char* _strFile0 = "..\\cifar-10-batches-bin\\test_batch.bin";
-	NNImageList *trainlist = new NNImageList();
+//	const char* _strFile1 = "..\\cifar-10-batches-bin\\data_batch_1.bin";
+	const char* _arrFiles[5] = {
+		"..\\cifar-10-batches-bin\\data_batch_1.bin"
+		,"..\\cifar-10-batches-bin\\data_batch_2.bin"
+		,"..\\cifar-10-batches-bin\\data_batch_3.bin"
+		,"..\\cifar-10-batches-bin\\data_batch_4.bin"
+		,"..\\cifar-10-batches-bin\\data_batch_5.bin"
+	};
+	NNImageList *trainlist[5] = {
+		new NNImageList()
+		,new NNImageList()
+		,new NNImageList()
+		,new NNImageList()
+		,new NNImageList()
+
+	};
 	NNImageList *test1list = new NNImageList();
 	// load images
-	trainlist->LoadFromFileNew(_strFile1);
 	test1list->LoadFromFileNew(_strFile0);
+	for (size_t i = 0; i < 5; i++)
+	{
+		trainlist[i]->LoadFromFileNew(_arrFiles[i]);
+
+	}
 	/*** Show number of images in train, test1, test2 ***/
-	printf("%d images in training set\n", trainlist->size());
+	printf("%d images in training set\n", trainlist[0]->size());
 	printf("%d images in test1 set\n", test1list->size());
 
-	int train_n = trainlist->size();
+	int train_n = trainlist[0]->size();
 
 	// 2.Initialize and create the neural net
 	BPNeuralNetwork::Initialize(nSeed);
@@ -504,7 +535,7 @@ void ImageLayer::trainNN(int nDataSetIndex) {
 		make a net with:
 		imgsize inputs, 4 hiden units, and 1 output unit
 		*/
-		net = BPNeuralNetwork::Create(imgsize, 10, 10);
+		net = BPNeuralNetwork::Create(imgsize, 100, 10);
 	}
 	else {
 		printf("Need some images to train on, use -t\n");
@@ -516,13 +547,13 @@ void ImageLayer::trainNN(int nDataSetIndex) {
 	if (net == NULL) {
 		if (train_n > 0) {
 			printf("Creating new network '%s'\n", strNetName);
-			NNImage *iimg = (*trainlist)[0];
+			NNImage *iimg = (*trainlist[0])[0];
 			int imgsize = iimg->_nRows*iimg->_nCols*iimg->_nTuls;
 			/* bthom ===========================
 			make a net with:
 			imgsize inputs, 4 hiden units, and 1 output unit
 			*/
-			net = BPNeuralNetwork::Create(imgsize, 64, 10);
+			net = BPNeuralNetwork::Create(imgsize, 100, 10);
 		}
 		else {
 			printf("Need some images to train on, use -t\n");
@@ -538,50 +569,54 @@ void ImageLayer::trainNN(int nDataSetIndex) {
 
 	// 3.Print out performance before any epochs have been completed.
 	printf("0 0.0 ");
-	net->CalculatePerformanceNew(trainlist, 0);
+//	net->CalculatePerformanceNew(trainlist, 0);
 	net->CalculatePerformanceNew(test1list, 0);
 	printf("\n"); 
 	if (list_errors) {
-		printf("\nFailed to classify the following images from the training set:\n");
-		net->CalculatePerformanceNew(trainlist, 1);
+//		printf("\nFailed to classify the following images from the training set:\n");
+//		net->CalculatePerformanceNew(trainlist, 1);
 		printf("\nFailed to classify the following images from the test set 1:\n");
 		net->CalculatePerformanceNew(test1list, 1);
 	}
 
 	// 4.train
-	for (int epoch = 1; epoch <= nEpochs; epoch++) {
+	for (size_t iteT = 0; iteT < 5; iteT++)
+	{
+		for (int epoch = 1; epoch <= nEpochs; epoch++) {
 
-		printf("%d ", epoch);
+			printf("%d ", epoch);
 
-		double out_err;
-		double hid_err;
-		double sumerr = 0.0;
-		for (int i = 0; i < train_n; i++) {
+			double out_err;
+			double hid_err;
+			double sumerr = 0.0;
+			for (int i = 0; i < train_n; i++) {
 
-			/** Set up input units on net with image i **/
-			net->LoadInputImage((*trainlist)[i]);
+				/** Set up input units on net with image i **/
+				net->LoadInputImage((*trainlist[iteT])[i]);
 
-			/** Set up target vector for image i **/
-			net->LoadTargetNew((*trainlist)[i]);
+				/** Set up target vector for image i **/
+				net->LoadTargetNew((*trainlist[iteT])[i]);
 
-			/** Run backprop, learning rate 0.3, momentum 0.3 **/
-			net->Train(0.3, 0.3, &out_err, &hid_err);
+				/** Run backprop, learning rate 0.3, momentum 0.3 **/
+				net->Train(g_dbEta, g_dbDMomentum, &out_err, &hid_err);
 
-			sumerr += (out_err + hid_err);
+				sumerr += (out_err + hid_err);
+			}
+			printf("%g ", sumerr);
+
+			/*** Evaluate performance on train, test, test2, and print perf ***/
+			net->CalculatePerformanceNew(trainlist[iteT], 0);
+			net->CalculatePerformanceNew(test1list, 0);
+			printf("\n");
+
+			/*** Save network every 'savedelta' epochs ***/
+			if (!(epoch % nSavedDelta)) {
+				net->Save(strNetName);
+			}
 		}
-		printf("%g ", sumerr);
+		printf("\n");
 
-		/*** Evaluate performance on train, test, test2, and print perf ***/
-		net->CalculatePerformanceNew(trainlist, 0);
-		net->CalculatePerformanceNew(test1list, 0);
-		printf("\n");  
-
-		/*** Save network every 'savedelta' epochs ***/
-		if (!(epoch % nSavedDelta)) {
-			net->Save(strNetName);
-		}
 	}
-	printf("\n");
 
 	// 5.save the network
 	if (nEpochs > 0) {
@@ -591,9 +626,249 @@ void ImageLayer::trainNN(int nDataSetIndex) {
 
 }
 
+void ImageLayer::testMeanClassifier() {
+
+	// 1.statistic
+	statistic();
+	// 2.test
+	test(0, TM_Mean);
+}
+
+void ImageLayer::testNearestNeighbor() {
+	int nRight = 0;
+	for (size_t i = 0; i < g_nImgs; i++)
+	{
+		int nLabel = getLabelByNN(_arrPixels[0][i]);
+		if (nLabel == _arrLabels[0][i]) nRight++;
+		cout << i << "\t" << nRight / (double)(i + 1) << endl;
+	}
+	cout << nRight / (double)g_nImgs << endl;
+}
+
+int calcL1Dis(unsigned char pImg1[g_nPixels][3], unsigned char pImg2[g_nPixels][3]) {
+	int nDis = 0;
+	for (size_t i = 0; i < g_nPixels; i++)
+	{
+		for (size_t j = 0; j < 3; j++)
+		{
+			nDis += abs(pImg1[i][j] - pImg2[i][j]);
+		}
+	}
+	return nDis;
+}
+
+double calcL2Dis(unsigned char pImg1[g_nPixels][3], unsigned char pImg2[g_nPixels][3]) {
+	double dbDis = 0;
+	for (size_t i = 0; i < g_nPixels; i++)
+	{
+		for (size_t j = 0; j < 3; j++)
+		{
+			double dbDif = pImg1[i][j] - pImg2[i][j];
+			dbDis += dbDif*dbDif;
+		}
+	}
+	return sqrt(dbDis);
+}
+
+int ImageLayer::getLabelByNN(unsigned char pImg[1024][3]) {
+	double dbDisMin = 10000000.0;
+	int nLabelMin = -1;
+	for (size_t iteF = 1; iteF < g_nFiles; iteF++)
+	{
+		for (size_t i = 0; i < g_nImgs; i++)
+		{
+			double dbDis = calcL2Dis(pImg, _arrPixels[iteF][i]);
+			if (dbDis < dbDisMin) {
+				dbDisMin = dbDis;
+				nLabelMin = _arrLabels[iteF][i];
+			}
+		}
+
+	}
+	return nLabelMin;
+}
+
+
+/*
+update the parateters
+nClass=1/-1;
+*/
+void ImageLayer::updateW(double* arrData, int nLabel, double dbDelta, double dbLambda) {
+	double dbLoss = 0;
+	int nParamLen = g_nPixels * 3 + 1;
+	// calculate the score for each class about this instance
+	double arrScore[g_nClass];
+	for (size_t i = 0; i < g_nClass; i++)
+	{
+		arrScore[i] = 0;
+		for (size_t j = 0; j < nParamLen; j++)
+		{
+			arrScore[i] += arrData[j] * _arrW[i*nParamLen + j];
+		}
+	}
+	// check each score and update W
+	for (size_t i = 0; i < g_nClass; i++)
+	{		
+		if (i == nLabel) continue;
+		double dbBias = arrScore[i] - arrScore[nLabel] + dbDelta;
+		dbBias = dbBias > 0 ? 1.0 : -1.0;
+		if (dbBias>0)
+		{
+			// update W
+			for (size_t j = 0; j < nParamLen; j++)
+			{
+				_arrW[i*nParamLen + j] -= arrData[j] * dbBias*dbLambda;
+				_arrW[nLabel*nParamLen + j] -= arrData[nLabel] * dbBias*dbLambda;
+			}
+		}
+	}
+}
+
+void ImageLayer::testMSVM() {
+
+	// initialize W
+	initW();
+	test(0);
+
+
+	int nEpochs = 100;
+	double dbDelta = 0.1;
+	double dbLambda = 0.0000001;
+	const int nPixelLen = g_nPixels * 3 + 1;
+	double arrData[nPixelLen];
+	for (size_t epoch = 0; epoch < nEpochs; epoch++)
+	{
+		for (size_t fileIndex = 1; fileIndex < g_nFiles; fileIndex++)
+		{
+			for (size_t i = 0; i < g_nImgs; i++)
+			{
+				for (size_t j = 1; j < g_nPixels; j++)
+				{
+					for (size_t k = 0; k < 3; k++)
+					{
+						arrData[3 * j + k] = _arrPixels[fileIndex][i][j][k];
+					}
+				}
+				arrData[nPixelLen - 1] = 1;
+				updateW(arrData, _arrLabels[fileIndex][i], dbDelta, dbLambda);
+			}
+		}
+
+		cout << epoch << "\t";
+		test(0);
+	}
 
 
 
 
+}
 
 
+void ImageLayer::testLossFun() {
+	// calculate the loss
+	/*
+	for (size_t i = 0; i < 100; i++)
+	{
+	train(g_nFocusedIndex);
+	// test result
+	test(1);
+	test(0);
+
+	}*/
+	for (size_t i = 0; i < 10; i++)
+	{
+
+		initW(true);
+		cout << "loss: " << calculateLoss(0,_arrW) << "\t";
+		test(0);
+	}
+}
+
+
+
+void ImageLayer::testRandomLocalSearch() {
+	int nEpochs = 100;
+	initW();
+	cout << "loss: " << calculateLoss(0, _arrW) << "\t";
+	test(0);
+	for (size_t i = 0; i < nEpochs; i++)
+	{
+		for (size_t j = 1; j < g_nFiles; j++)
+		{
+			trainRandomLocal(j);
+		}
+		cout << "loss: " << calculateLoss(0, _arrW) << "\t";
+		test(0);
+	}
+}
+
+
+void ImageLayer::testSoftMax() {
+	/*
+	// 0.create classifier
+	int nPoints = (g_nFiles - 1)*g_nImgs;
+	int nD = g_nPixels * 3;
+	IMyClassifier* pClassifier = IMyClassifier::CreateClassifier(IMyClassifier::SoftMax, nPoints, g_nPixels, g_nClass, 100);
+	// 1.create training data
+	MyMatrix input(nPoints, nD);
+	int* arrLabels=new int[nPoints];
+	int nIndex = 0;
+	for (size_t i = 1; i < g_nFiles; i++)
+	{
+		for (size_t j = 0; j < g_nImgs; j++)
+		{
+			arrLabels[nIndex] = _arrLabels[i][j];
+			for (size_t k = 0; k < g_nPixels; k++)
+			{
+				for (size_t l = 0; l < 3; l++)
+				{
+					input.SetValue(nIndex, k * 3 + l, _arrPixels[i][j][k][l]);
+				}
+			}
+			nIndex++;
+		}
+
+
+	}
+	// 2.train
+	pClassifier->Train(&input, arrLabels);
+
+	// 3.release resource
+	delete pClassifier;
+	delete[] arrLabels;*/
+
+
+
+	// one file only
+	// 0.create classifier
+	int nPoints = g_nImgs;
+	int nD = g_nPixels * 3;
+	IMyClassifier* pClassifier = IMyClassifier::CreateClassifier(IMyClassifier::SoftMax, nPoints, nD, g_nClass, 100);
+	// 1.create training data
+	MyMatrix input(nPoints, nD);
+	int* arrLabels = new int[nPoints];
+	int nIndex = 0;
+	for (size_t i = 1; i < 2; i++)
+	{
+		for (size_t j = 0; j < g_nImgs; j++)
+		{
+			arrLabels[nIndex] = _arrLabels[i][j];
+			for (size_t k = 0; k < g_nPixels; k++)
+			{
+				for (size_t l = 0; l < 3; l++)
+				{
+					input.SetValue(nIndex, k * 3 + l, _arrPixels[i][j][k][l]/(double)255);
+				}
+			}
+			nIndex++;
+		}
+
+
+	}
+	// 2.train
+	pClassifier->Train(&input, arrLabels);
+
+	// 3.release resource
+	delete pClassifier;
+	delete[] arrLabels;
+}

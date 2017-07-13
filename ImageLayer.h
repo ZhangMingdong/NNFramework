@@ -38,29 +38,52 @@ private:
 	void generateTexture();
 
 	// classify an image whose index is nIndex, return its label
-	int classifyByMean(int nIndex);
+	int classifyByMean(int nFileIndex,int nImgIndex);
 
 	// classify an image whose index is nIndex, return its label
-	int classifyByW(int nIndex);
+	int classifyByW(int nFileIndex, int nImgIndex);
 
 	// initialize W matrix
-	void initW();
+	void initW(bool bRandom=false);
 
 	// calculate loss of current w
-	double calculateLoss(const double *pW);
+	double calculateLoss(int nFileIndex,const double *pW);
 
 	// calculate data loss of the nIndex's image
-	double calculateDataLoss(int nIndex, const double* pW);
+	double calculateDataLoss(int nFileIndex, int nImgIndex, const double* pW);
 
-	// calculate the score vector of the nIndex's image
-	void calculateScore(int nIndex, const double* pW, double* arrScore);
+	// calculate the score vector of the nIndex's image of the nImgIndex's file
+	void calculateScore(int nFileIndex,int nImgIndex, const double* pW, double* arrScore);
 
-	// training using dataset of the given index
-	void train(int nDataSetIndex);
+	// training random locally
+	void trainRandomLocal(int nFileIndex);
 
 	// train neural network
 	void trainNN(int nDataSetIndex);
 
+	// test mean classifier
+	void testMeanClassifier();
+
+	// test nearest neighbor classifier
+	void testNearestNeighbor();
+
+	// get the label of the image by NN
+	int getLabelByNN(unsigned char pImg[1024][3]);
+
+	// test the algorithm of Multiclass SVM
+	void testMSVM();
+
+	// update W for a training instance
+	void updateW(double* arrData, int nLabel, double dbDelta, double dbLambda);
+
+	// test the loss function
+	void testLossFun();
+
+	// test random local search
+	void testRandomLocalSearch();
+
+	// test SoftMax classifier
+	void testSoftMax();
 private:
 
 

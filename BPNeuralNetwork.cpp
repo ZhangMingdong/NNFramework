@@ -88,6 +88,7 @@ void bpnn_layerforward(double *l1, double *l2, double **conn, int n1, int n2)
 
 }
 
+// o(1-o)(t-o)
 void bpnn_output_error(double *delta, double *target, double *output, int nj, double *err)
 {
 	double errsum = 0.0;

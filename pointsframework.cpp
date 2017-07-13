@@ -2,7 +2,7 @@
 
 #include <QDockWidget>
 
-void TestSunGlass();
+
 
 PointsFramework::PointsFramework(QWidget *parent)
 	: QMainWindow(parent)
@@ -66,7 +66,7 @@ void PointsFramework::onGenerateRandomClicked(){
  	pWidget->GenerateRandomPoints(_pControlWidget->ui.spinBoxNum->value());
 
 	pWidget->updateGL();*/
-	TestSunGlass();
+
 }
 
 void PointsFramework::onGenerateBlueNoiseClicked() {

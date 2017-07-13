@@ -28,6 +28,9 @@ static char* g_pModelFileName = "head.net";
 static int g_nHiddenLayers = 3;
 static int g_nOutputLayers = 4;
 
+static double g_dbEta = 0.1;
+static double g_dbDMomentum = 0.1;
+
 
 /*
 // expression
