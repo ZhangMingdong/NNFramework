@@ -38,7 +38,6 @@ public:
 	{
 		SoftMax,
 		Ann
-
 	};
 	// create a classifier
 	static IMyClassifier* CreateClassifier(Enum_Classifier type, int nPoints, int nD, int nClass,int nHiddden=0);

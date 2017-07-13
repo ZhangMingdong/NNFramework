@@ -868,6 +868,24 @@ void ImageLayer::testSoftMax() {
 	// 2.train
 	pClassifier->Train(&input, arrLabels);
 
+	// 3.test
+	int nCorrect = 0;
+	double* arrTestData = new double[nPoints];
+	for (size_t j = 0; j < g_nImgs; j++)
+	{
+		for (size_t k = 0; k < g_nPixels; k++)
+		{
+			for (size_t l = 0; l < 3; l++)
+			{
+				arrTestData[k*3+l]= _arrPixels[0][j][k][l] / (double)255;
+			}
+		}
+		int nLabel = pClassifier->CalcLabel(arrTestData);
+		if (nLabel == _arrLabels[0][j]) nCorrect++;
+	}
+	cout << "Accuracy on the test data: " << nCorrect / (double)nPoints;
+	delete[] arrTestData;
+
 	// 3.release resource
 	delete pClassifier;
 	delete[] arrLabels;

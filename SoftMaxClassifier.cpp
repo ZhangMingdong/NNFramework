@@ -27,10 +27,10 @@ void SoftMaxClassifier::Train(const MyMatrix* pInput, const int* pLabel) {
 	_pI = pInput;
 	_arrLabel = pLabel;
 	// train
-	double dbStepSize = 0.01;// 1.0;
+	double dbStepSize = 0.02;// 1.0;
 	double dbReg = 0.003;
 	// set step to 1 to show the training procedure
-	int nEpochs = 200;
+	int nEpochs = 1000;
 	for (size_t i = 0; i < nEpochs; i++)
 	{
 		trainStep(dbStepSize, dbReg);
