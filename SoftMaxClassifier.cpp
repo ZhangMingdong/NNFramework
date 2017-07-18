@@ -1,6 +1,7 @@
 #include "SoftMaxClassifier.h"
 #include <math.h>
 #include <iostream>
+#include <fstream>
 
 using namespace std;
 
@@ -28,13 +29,17 @@ void SoftMaxClassifier::Train(const MyMatrix* pInput, const int* pLabel) {
 	_arrLabel = pLabel;
 	// train
 	double dbStepSize = 0.02;// 1.0;
-	double dbReg = 0.003;
+	double dbReg = 0.001;
 	// set step to 1 to show the training procedure
-	int nEpochs = 1000;
+	int nEpochs = 100;
 	for (size_t i = 0; i < nEpochs; i++)
 	{
+		cout << "Epoches: " << i << "\t";
 		trainStep(dbStepSize, dbReg);
 	}
+
+	// save the parameters
+	saveParams();
 }
 
 void SoftMaxClassifier::trainStep(double dbStepSize, double dbReg) {
@@ -59,7 +64,7 @@ void SoftMaxClassifier::trainStep(double dbStepSize, double dbReg) {
 	dbDataLoss /= _nPoints;
 	double dbRegLoss = 0.5*dbReg*_pW->Norm2();
 	double dbLoss = dbRegLoss + dbDataLoss;
-	cout << "Loss:\t" << dbLoss << "\t";
+	cout << "Loss:\t" << dbLoss << "\t";// << dbDataLoss << "\t" << dbRegLoss << "\t";
 
 	// 4.compute the  gradient on scores
 	MyMatrix dScore(&prob);
@@ -85,12 +90,7 @@ void SoftMaxClassifier::trainStep(double dbStepSize, double dbReg) {
 	_pB->Linear(&dB, -dbStepSize);
 
 	// 8.calculate score and accuracy
-	int nPredicted = 0;
-	for (size_t i = 0; i < _nPoints; i++)
-	{
-		if (CalcLabel(_pI->GetRow(i)) == _arrLabel[i]) nPredicted++;
-	}
-	cout << "Accuracy:\t" << nPredicted / (double)(_nPoints) << endl;;
+	cout << "Accuracy:\t" << Test(_pI,_arrLabel) << endl;;
 }
 
 
@@ -118,4 +118,34 @@ int SoftMaxClassifier::CalcLabel(const double* X) {
 
 void SoftMaxClassifier::evaluateScore(MyMatrix* pScores) {
 	pScores->Formula(_pI, _pW, _pB);
+}
+
+void SoftMaxClassifier::saveParams() {
+	ofstream output("softmax_params.txt");
+	// W
+	int nRows = _pW->Rows();
+	int nCols = _pW->Cols();
+	output << nRows << endl;
+	output << nCols << endl;
+	for (size_t i = 0; i < nRows; i++)
+	{
+		for (size_t j = 0; j < nCols; j++)
+		{
+			output << _pW->GetValue(i, j) << endl;
+		}
+	}
+
+	// B
+	nRows = _pB->Rows();
+	nCols = _pB->Cols();
+	output << nRows << endl;
+	output << nCols << endl;
+	for (size_t i = 0; i < nRows; i++)
+	{
+		for (size_t j = 0; j < nCols; j++)
+		{
+			output << _pB->GetValue(i, j) << endl;
+		}
+	}
+
 }

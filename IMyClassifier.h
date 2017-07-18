@@ -16,6 +16,9 @@ public:
 	virtual void Train(const MyMatrix* pInput, const int* pLabel)=0;
 	// calculate the label of point
 	virtual int CalcLabel(const double* X)=0;
+public:
+	// test on the test dataset
+	double Test(const MyMatrix* pTestData, const int* pTestLabel);
 protected:
 	// input
 	const MyMatrix* _pI;
@@ -31,6 +34,7 @@ protected:
 protected:
 	// initialized the classifer
 	void initialize(int nPoints, int nD, int nClass);
+protected:
 	// initialization of the implementation classes
 	virtual void initializeImp() = 0;
 public:

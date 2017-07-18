@@ -42,10 +42,10 @@ void AnnClassifier::Train(const MyMatrix* pInput, const int* pLabel) {
 	_pI = pInput;
 	_arrLabel = pLabel;
 	// train
-	double dbStepSize = 1.0;
-	double dbReg = 0.001;
+	double dbStepSize = 0.001;
+	double dbReg = 0.00001;
 	// set step to 1 to show the training procedure
-	int nEpochs = 10000;
+	int nEpochs = 100;
 	for (size_t i = 0; i < nEpochs; i++)
 	{
 		trainStep(dbStepSize, dbReg);
@@ -56,7 +56,17 @@ void AnnClassifier::trainStep(double dbStepSize, double dbReg) {
 	// 1.evaluate class scores
 	MyMatrix scores(_nPoints, _nClass);
 	evaluateScore(&scores);
-
+	/*
+	Test(_pI, _arrLabel);
+	for (size_t i = 0; i < _nPoints; i++)
+	{
+		for (size_t j = 0; j < _nClass; j++)
+		{
+			cout << scores.GetValue(i, j) << "\t";
+		}
+		cout << endl;
+	}
+	*/
 	// 2.compute the class probabilities
 	MyMatrix expScores(&scores, exp);
 	MyMatrix expScoreSum;
@@ -72,9 +82,11 @@ void AnnClassifier::trainStep(double dbStepSize, double dbReg) {
 		dbDataLoss += dbCorrectLogProb;
 	}
 	dbDataLoss /= _nPoints;
-	double dbRegLoss = 0.5*dbReg*(_pW1->Norm2()+_pW2->Norm2());
+	double dbRegLossRaw = 0.5*(_pW1->Norm2() + _pW2->Norm2());
+	double dbRegLoss = dbReg*dbRegLossRaw;
+	
 	double dbLoss = dbRegLoss + dbDataLoss;
-	cout << "Loss:\t" << dbLoss << "\t";
+	cout << "Loss:\t" << dbLoss << "\t" << dbDataLoss << "\t" << dbRegLossRaw << "\t";
 
 	// 4.compute the  gradient on scores
 	MyMatrix dScore(&prob);
@@ -129,12 +141,7 @@ void AnnClassifier::trainStep(double dbStepSize, double dbReg) {
 	_pB2->Linear(&dB2, -dbStepSize);
 
 	// 8.calculate score and accuracy
-	int nPredicted = 0;
-	for (size_t i = 0; i < _nPoints; i++)
-	{
-		if (CalcLabel(_pI->GetRow(i)) == _arrLabel[i]) nPredicted++;
-	}
-	cout << "Accuracy:\t" << nPredicted / (double)(_nPoints) << endl;;
+	cout << "Accuracy:\t" << Test(_pI, _arrLabel) << endl;;
 }
 
 
@@ -160,6 +167,14 @@ int AnnClassifier::CalcLabel(const double* X) {
 			dbMaxScore = dbValue;
 		}
 	}
+	/*
+	if (nResult>0)
+	{
+		int xx = 0;
+		xx++;
+	}
+	cout << nResult << endl;
+	*/
 	return nResult;
 }
 

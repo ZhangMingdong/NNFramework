@@ -37,3 +37,15 @@ IMyClassifier* IMyClassifier::CreateClassifier(Enum_Classifier type, int nPoints
 		pClassifier->initialize(nPoints, nD, nClass);
 	return pClassifier;
 }
+
+
+// test on the test dataset
+double IMyClassifier::Test(const MyMatrix* pTestData, const int* pTestLabel) {
+	int nPredicted = 0;
+	int nPoints = pTestData->Rows();
+	for (size_t i = 0; i < nPoints; i++)
+	{
+		if (CalcLabel(pTestData->GetRow(i)) == pTestLabel[i]) nPredicted++;
+	}
+	return nPredicted / (double)(nPoints);
+}

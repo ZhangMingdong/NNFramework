@@ -41,6 +41,9 @@ ImageLayer::ImageLayer() :_dataTexture(0)
 		readData(i, _arrFiles[i]);
 	}
 
+
+	long t1 = GetTickCount();
+
 //	testMeanClassifier();
 //	trainNN(g_nFocusedIndex);
 //	testNearestNeighbor();
@@ -48,8 +51,11 @@ ImageLayer::ImageLayer() :_dataTexture(0)
 //	testLossFun();
 //	testRandomLocalSearch();
 	testSoftMax();
+//	testAnn();
 
 
+	int t = GetTickCount() - t1;
+	cout << "Computing time: \t" << t << endl;
 
 	// generate texture
 	generateTexture();
@@ -804,51 +810,29 @@ void ImageLayer::testRandomLocalSearch() {
 
 
 void ImageLayer::testSoftMax() {
-	/*
+	// -1.create test data
+	MyMatrix testData(g_nImgs, g_nPixels * 3);
+	for (size_t j = 0; j < g_nImgs; j++)
+	{
+		for (size_t k = 0; k < g_nPixels; k++)
+		{
+			for (size_t l = 0; l < 3; l++)
+			{
+				testData.SetValue(j, k * 3 + l, _arrPixels[0][j][k][l] / (double)255);
+			}
+		}
+	}
+
 	// 0.create classifier
+//	int nPoints = g_nImgs;
 	int nPoints = (g_nFiles - 1)*g_nImgs;
 	int nD = g_nPixels * 3;
-	IMyClassifier* pClassifier = IMyClassifier::CreateClassifier(IMyClassifier::SoftMax, nPoints, g_nPixels, g_nClass, 100);
-	// 1.create training data
-	MyMatrix input(nPoints, nD);
-	int* arrLabels=new int[nPoints];
-	int nIndex = 0;
-	for (size_t i = 1; i < g_nFiles; i++)
-	{
-		for (size_t j = 0; j < g_nImgs; j++)
-		{
-			arrLabels[nIndex] = _arrLabels[i][j];
-			for (size_t k = 0; k < g_nPixels; k++)
-			{
-				for (size_t l = 0; l < 3; l++)
-				{
-					input.SetValue(nIndex, k * 3 + l, _arrPixels[i][j][k][l]);
-				}
-			}
-			nIndex++;
-		}
-
-
-	}
-	// 2.train
-	pClassifier->Train(&input, arrLabels);
-
-	// 3.release resource
-	delete pClassifier;
-	delete[] arrLabels;*/
-
-
-
-	// one file only
-	// 0.create classifier
-	int nPoints = g_nImgs;
-	int nD = g_nPixels * 3;
-	IMyClassifier* pClassifier = IMyClassifier::CreateClassifier(IMyClassifier::SoftMax, nPoints, nD, g_nClass, 100);
+	IMyClassifier* pClassifier = IMyClassifier::CreateClassifier(IMyClassifier::SoftMax, nPoints, nD, g_nClass);
 	// 1.create training data
 	MyMatrix input(nPoints, nD);
 	int* arrLabels = new int[nPoints];
 	int nIndex = 0;
-	for (size_t i = 1; i < 2; i++)
+	for (size_t i = 1; i < g_nFiles; i++)
 	{
 		for (size_t j = 0; j < g_nImgs; j++)
 		{
@@ -865,27 +849,73 @@ void ImageLayer::testSoftMax() {
 
 
 	}
-	// 2.train
-	pClassifier->Train(&input, arrLabels);
+	int nEpochs = 1;
+	for (size_t i = 0; i < nEpochs; i++)
+	{
+		// 2.train
+		pClassifier->Train(&input, arrLabels);
 
-	// 3.test
-	int nCorrect = 0;
-	double* arrTestData = new double[nPoints];
+		// 3.test
+		cout << "Epoch:\t"<<i<<"\tAccuracy on the test data: " << pClassifier->Test(&testData, _arrLabels[0]) << endl;
+
+	}
+	// 3.release resource
+	delete pClassifier;
+	delete[] arrLabels;
+}
+
+
+void ImageLayer::testAnn() {
+	// -1.create test data
+	MyMatrix testData(g_nImgs, g_nPixels * 3);
 	for (size_t j = 0; j < g_nImgs; j++)
 	{
 		for (size_t k = 0; k < g_nPixels; k++)
 		{
 			for (size_t l = 0; l < 3; l++)
 			{
-				arrTestData[k*3+l]= _arrPixels[0][j][k][l] / (double)255;
+				testData.SetValue(j, k * 3 + l, _arrPixels[0][j][k][l] / (double)255);
 			}
 		}
-		int nLabel = pClassifier->CalcLabel(arrTestData);
-		if (nLabel == _arrLabels[0][j]) nCorrect++;
 	}
-	cout << "Accuracy on the test data: " << nCorrect / (double)nPoints;
-	delete[] arrTestData;
 
+	// 0.create classifier
+	int nPoints = g_nImgs;
+//	int nPoints = (g_nFiles - 1)*g_nImgs;
+	int nD = g_nPixels * 3;
+	IMyClassifier* pClassifier = IMyClassifier::CreateClassifier(IMyClassifier::Ann, nPoints, nD, g_nClass, 1000);
+	// 1.create training data
+	MyMatrix input(nPoints, nD);
+	int* arrLabels = new int[nPoints];
+	int nIndex = 0;
+//	for (size_t i = 1; i < g_nFiles; i++)
+	for (size_t i = 1; i < 2; i++)
+	{
+		for (size_t j = 0; j < g_nImgs; j++)
+		{
+			arrLabels[nIndex] = _arrLabels[i][j];
+			for (size_t k = 0; k < g_nPixels; k++)
+			{
+				for (size_t l = 0; l < 3; l++)
+				{
+					input.SetValue(nIndex, k * 3 + l, _arrPixels[i][j][k][l] / (double)255);
+				}
+			}
+			nIndex++;
+		}
+
+
+	}
+	int nEpochs = 1;
+	for (size_t i = 0; i < nEpochs; i++)
+	{
+		// 2.train
+		pClassifier->Train(&input, arrLabels);
+
+		// 3.test
+		cout << "Epoch:\t" << i << "\tAccuracy on the test data: " << pClassifier->Test(&testData, _arrLabels[0]) << endl;
+
+	}
 	// 3.release resource
 	delete pClassifier;
 	delete[] arrLabels;

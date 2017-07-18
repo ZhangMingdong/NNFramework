@@ -61,8 +61,8 @@ public:		// modify
 	// divide by pDivisor
 	void Div(MyMatrix* pResult, MyMatrix* pDivisor);
 
-	int Rows() { return _nR; }
-	int Cols() { return _nC; }
+	int Rows()const { return _nR; }
+	int Cols()const { return _nC; }
 
 
 private:

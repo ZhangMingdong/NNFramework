@@ -84,6 +84,8 @@ private:
 
 	// test SoftMax classifier
 	void testSoftMax();
+	// test ANN classifier
+	void testAnn();
 private:
 
 
@@ -94,7 +96,7 @@ private:
 	GLubyte* _dataTextureMean;
 
 	// array of labels
-	unsigned char _arrLabels[g_nFiles][g_nImgs];
+	int _arrLabels[g_nFiles][g_nImgs];
 	// array of pixels
 	unsigned char _arrPixels[g_nFiles][g_nImgs][g_nPixels][3];	// the array[0] is the test data
 

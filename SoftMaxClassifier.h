@@ -16,16 +16,18 @@ private:
 
 protected:
 	// initialized the classifer
-	void initializeImp();
+	virtual void initializeImp();
 public:
 	// training
-	void Train(const MyMatrix* pInput, const int* pLabel);
+	virtual void Train(const MyMatrix* pInput, const int* pLabel);
 	// calculate the label of point
-	int CalcLabel(const double* X);
+	virtual int CalcLabel(const double* X);
 private:
 	// an epoch of the training
 	void trainStep(double dbStepSize, double dbReg);
 	// evaluate scores of all the instance
 	void evaluateScore(MyMatrix* pScores);
+	// save the parameters
+	void saveParams();
 };
 
