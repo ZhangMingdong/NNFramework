@@ -143,15 +143,7 @@ void FaceImageLayer::trainNNFace() {
 	_pBPNN->CalculatePerformance(_arrImage[0], 0);
 	_pBPNN->CalculatePerformance(_arrImage[1], 0);
 	_pBPNN->CalculatePerformance(_arrImage[2], 0);
-	printf("\n");  fflush(stdout);
-	if (list_errors) {
-		printf("\nFailed to classify the following images from the training set:\n");
-		_pBPNN->CalculatePerformance(_arrImage[0], 1);
-		printf("\nFailed to classify the following images from the test set 1:\n");
-		_pBPNN->CalculatePerformance(_arrImage[1], 1);
-		printf("\nFailed to classify the following images from the test set 2:\n");
-		_pBPNN->CalculatePerformance(_arrImage[2], 1);
-	}
+	printf("\n"); 
 
 	// 1.train
 	for (int epoch = 1; epoch <= epochs; epoch++) {
@@ -167,7 +159,7 @@ void FaceImageLayer::trainNNFace() {
 			_pBPNN->LoadInputImage((*_arrImage[0])[i]);
 
 			/** Set up target vector for image i **/
-			_pBPNN->LoadTarget((*_arrImage[0])[i]);
+			_pBPNN->LoadTargetNew((*_arrImage[0])[i]);
 
 			/** Run backprop, learning rate 0.3, momentum 0.3 **/
 			_pBPNN->Train(0.3, 0.3, &out_err, &hid_err);
@@ -180,7 +172,7 @@ void FaceImageLayer::trainNNFace() {
 		_pBPNN->CalculatePerformance(_arrImage[0], 0);
 		_pBPNN->CalculatePerformance(_arrImage[1], 0);
 		_pBPNN->CalculatePerformance(_arrImage[2], 0);
-		printf("\n");  fflush(stdout);
+		printf("\n");  
 
 		/*** Save network every 'savedelta' epochs ***/
 		if (!(epoch % savedelta)) {

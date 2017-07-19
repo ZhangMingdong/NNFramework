@@ -58,8 +58,7 @@ public:
 	void CalculatePerformance(NNImageList *il, int list_errors);
 	// Load the image into the input layer
 	void LoadInputImage(NNImage *img);
-	// Set up the target vector for this image.
-	void LoadTarget(NNImage *img);
+
 	// for new data set
 	void LoadTargetNew(NNImage *img);
 
