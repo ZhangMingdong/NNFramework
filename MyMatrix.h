@@ -64,6 +64,9 @@ public:		// modify
 	int Rows()const { return _nR; }
 	int Cols()const { return _nC; }
 
+	// print the matrix
+	void Print()const;
+
 
 private:
 	// allocate space for _data

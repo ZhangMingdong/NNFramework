@@ -2,6 +2,7 @@
 
 //#include "Sequence1DLayer.h"
 #include "ImageLayer.h"
+#include "FaceImageLayer.h"
 //#include "SingleNormalPointsLayer.h"
 //#include "MultiNormalPointsLayer.h"
 //#include "RandomPointsLayer.h"
@@ -29,8 +30,8 @@ ILayer* ILayer::CreateLayer(EnumLayerType type,bool bShowBg, int nPoints, double
 	case ILayer::LT_Image:
 		pLayer = new ImageLayer();
 		break;
-	case ILayer::LT_Normal_Single:
-//		pLayer = new SingleNormalPointsLayer(nPoints,mx,my,vx,vy);
+	case ILayer::LT_Face:
+		pLayer = new FaceImageLayer();
 		break;
 	case ILayer::LT_Normal_Multi:
 //		pLayer = new MultiNormalPointsLayer(nPoints, mx, my, vx, vy);

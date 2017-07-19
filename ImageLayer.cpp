@@ -26,7 +26,27 @@ ImageLayer::ImageLayer() :_dataTexture(0)
 , _arrW(0)
 , _dbDelta(1.0)
 , _dbLambda(1.0)
+, _pBPNN(NULL)
 {
+}
+
+ImageLayer::~ImageLayer()
+{
+	if (_dataTexture)
+	{
+		delete[]_dataTexture;
+	}
+	if (_dataTextureMean)
+	{
+		delete[]_dataTextureMean;
+	}
+	if (_arrW) delete[] _arrW;
+
+	if (_pBPNN) delete _pBPNN;
+}
+
+
+void ImageLayer::Initialize() {
 	// 0.read data
 	const char* _arrFiles[g_nFiles] = {
 		"..\\cifar-10-batches-bin\\test_batch.bin"
@@ -45,13 +65,14 @@ ImageLayer::ImageLayer() :_dataTexture(0)
 	long t1 = GetTickCount();
 
 //	testMeanClassifier();
-//	trainNN(g_nFocusedIndex);
+	trainNN(g_nFocusedIndex);
 //	testNearestNeighbor();
 //	testMSVM();
 //	testLossFun();
 //	testRandomLocalSearch();
-	testSoftMax();
+//	testSoftMax();
 //	testAnn();
+
 
 
 	int t = GetTickCount() - t1;
@@ -59,19 +80,6 @@ ImageLayer::ImageLayer() :_dataTexture(0)
 
 	// generate texture
 	generateTexture();
-}
-
-ImageLayer::~ImageLayer()
-{
-	if (_dataTexture)
-	{
-		delete[]_dataTexture;
-	}
-	if (_dataTextureMean)
-	{
-		delete[]_dataTextureMean;
-	}
-	if (_arrW) delete[] _arrW;
 }
 
 void ImageLayer::Draw() {
@@ -531,8 +539,12 @@ void ImageLayer::trainNN(int nDataSetIndex) {
 
 	// 2.Initialize and create the neural net
 	BPNeuralNetwork::Initialize(nSeed);
+	if (_pBPNN)
+	{
+		delete _pBPNN;
+		_pBPNN = NULL;
+	}
 #ifdef NOT_USE_ESIST_MODEL
-	BPNeuralNetwork *net = NULL;
 	if (train_n > 0) {
 		printf("Creating new network '%s'\n", strNetName);
 		NNImage *iimg = (*trainlist)[0];
@@ -541,16 +553,16 @@ void ImageLayer::trainNN(int nDataSetIndex) {
 		make a net with:
 		imgsize inputs, 4 hiden units, and 1 output unit
 		*/
-		net = BPNeuralNetwork::Create(imgsize, 100, 10);
+		_pBPNN = BPNeuralNetwork::Create(imgsize, 100, 10);
 	}
 	else {
 		printf("Need some images to train on, use -t\n");
 		return;
 	}
 #else
-	BPNeuralNetwork *net = BPNeuralNetwork::Read(strNetName);
+	_pBPNN = BPNeuralNetwork::Read(strNetName);
 	/*** Read network in if it exists, otherwise make one from scratch ***/
-	if (net == NULL) {
+	if (_pBPNN == NULL) {
 		if (train_n > 0) {
 			printf("Creating new network '%s'\n", strNetName);
 			NNImage *iimg = (*trainlist[0])[0];
@@ -559,7 +571,7 @@ void ImageLayer::trainNN(int nDataSetIndex) {
 			make a net with:
 			imgsize inputs, 4 hiden units, and 1 output unit
 			*/
-			net = BPNeuralNetwork::Create(imgsize, 100, 10);
+			_pBPNN = BPNeuralNetwork::Create(imgsize, 100, 10);
 		}
 		else {
 			printf("Need some images to train on, use -t\n");
@@ -575,14 +587,14 @@ void ImageLayer::trainNN(int nDataSetIndex) {
 
 	// 3.Print out performance before any epochs have been completed.
 	printf("0 0.0 ");
-//	net->CalculatePerformanceNew(trainlist, 0);
-	net->CalculatePerformanceNew(test1list, 0);
+//	_pBPNN->CalculatePerformanceNew(trainlist, 0);
+	_pBPNN->CalculatePerformanceNew(test1list, 0);
 	printf("\n"); 
 	if (list_errors) {
 //		printf("\nFailed to classify the following images from the training set:\n");
 //		net->CalculatePerformanceNew(trainlist, 1);
 		printf("\nFailed to classify the following images from the test set 1:\n");
-		net->CalculatePerformanceNew(test1list, 1);
+		_pBPNN->CalculatePerformanceNew(test1list, 1);
 	}
 
 	// 4.train
@@ -598,26 +610,26 @@ void ImageLayer::trainNN(int nDataSetIndex) {
 			for (int i = 0; i < train_n; i++) {
 
 				/** Set up input units on net with image i **/
-				net->LoadInputImage((*trainlist[iteT])[i]);
+				_pBPNN->LoadInputImage((*trainlist[iteT])[i]);
 
 				/** Set up target vector for image i **/
-				net->LoadTargetNew((*trainlist[iteT])[i]);
+				_pBPNN->LoadTargetNew((*trainlist[iteT])[i]);
 
 				/** Run backprop, learning rate 0.3, momentum 0.3 **/
-				net->Train(g_dbEta, g_dbDMomentum, &out_err, &hid_err);
+				_pBPNN->Train(g_dbEta, g_dbDMomentum, &out_err, &hid_err);
 
 				sumerr += (out_err + hid_err);
 			}
 			printf("%g ", sumerr);
 
 			/*** Evaluate performance on train, test, test2, and print perf ***/
-			net->CalculatePerformanceNew(trainlist[iteT], 0);
-			net->CalculatePerformanceNew(test1list, 0);
+			_pBPNN->CalculatePerformanceNew(trainlist[iteT], 0);
+			_pBPNN->CalculatePerformanceNew(test1list, 0);
 			printf("\n");
 
 			/*** Save network every 'savedelta' epochs ***/
 			if (!(epoch % nSavedDelta)) {
-				net->Save(strNetName);
+				_pBPNN->Save(strNetName);
 			}
 		}
 		printf("\n");
@@ -626,11 +638,11 @@ void ImageLayer::trainNN(int nDataSetIndex) {
 
 	// 5.save the network
 	if (nEpochs > 0) {
-		net->Save(strNetName);
+		_pBPNN->Save(strNetName);
 	}
-	delete net;
 
 }
+
 
 void ImageLayer::testMeanClassifier() {
 

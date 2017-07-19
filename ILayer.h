@@ -15,7 +15,7 @@ public:
 	{
 		LT_Sequence_1D
 		, LT_Image
-		, LT_Normal_Single
+		, LT_Face
 		, LT_Normal_Multi
 		, LT_Normal_Blue
 		, LT_Random
@@ -41,6 +41,7 @@ public:
 
 	// reset length of sample points and period of the function
 	virtual void Reset(int nLen, int nPeriod) {};
+
 public:
 	void ShowBackground(bool bShow) { _bShowBackground = bShow; }
 

@@ -484,8 +484,8 @@ void MyGLWidget::GenerateMulticlassBlueNoise(int number) {
 }
 void MyGLWidget::GenerateNormalPoints(int number, double mx, double my, double vx, double vy) {
 	if (_pLayer) delete _pLayer;
-	_pLayer = ILayer::CreateLayer(ILayer::LT_Normal_Single
-		, _bShowBg, number, mx, my, vx, vy);
+//	_pLayer = ILayer::CreateLayer(ILayer::LT_Normal_Single
+//		, _bShowBg, number, mx, my, vx, vy);
 }
 
 
@@ -498,13 +498,13 @@ void MyGLWidget::GenerateMVNPoints(int number, double mx, double my, double vx, 
 // generate a sequene
 void MyGLWidget::GenerateSequence() {
 	if (_pLayer) delete _pLayer;
-	_pLayer = ILayer::CreateLayer(ILayer::LT_Sequence_1D, _bShowBg);
+	_pLayer = ILayer::CreateLayer(ILayer::LT_Image, _bShowBg);
 }
 
 // generate a sequene
 void MyGLWidget::GenerateSequence2D() {
 	if (_pLayer) delete _pLayer;
-	_pLayer = ILayer::CreateLayer(ILayer::LT_Image, _bShowBg);
+	_pLayer = ILayer::CreateLayer(ILayer::LT_Face, _bShowBg);
 }
 
 // 开启\关闭手动选点

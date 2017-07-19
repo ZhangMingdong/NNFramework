@@ -4,6 +4,8 @@
 #include <QGLWidget>
 
 #include "setting.h"
+
+class BPNeuralNetwork;
 /*
 	Layer to show the 2D sequence
 	Mingdong
@@ -17,7 +19,10 @@ public:
 	virtual ~ImageLayer();
 public:
 	virtual void Draw();
-private:
+
+	// initialize the specific class
+	virtual void Initialize();
+protected:
 
 	// mode of the test
 	enum EnumTestMode
@@ -25,7 +30,7 @@ private:
 		TM_Mean
 		, TM_W
 	};
-private:
+protected:
 	// read the test data set 1
 	void readData(int nIndex,const char* strFile);
 
@@ -35,7 +40,8 @@ private:
 	// test classification by mean, using nTestIndex's data as test data
 	void test(int nTestIndex,EnumTestMode mode=TM_W);
 
-	void generateTexture();
+	// generate the texture of the image
+	virtual void generateTexture();
 
 	// classify an image whose index is nIndex, return its label
 	int classifyByMean(int nFileIndex,int nImgIndex);
@@ -60,6 +66,7 @@ private:
 
 	// train neural network
 	void trainNN(int nDataSetIndex);
+
 
 	// test mean classifier
 	void testMeanClassifier();
@@ -86,10 +93,9 @@ private:
 	void testSoftMax();
 	// test ANN classifier
 	void testAnn();
-private:
+public:
 
-
-private:
+protected:
 	// texture data and id
 	GLubyte* _dataTexture;
 	GLuint texID[2];
@@ -107,5 +113,7 @@ private:
 	double* _arrW;
 	double _dbDelta;
 	double _dbLambda;
+protected:
+	BPNeuralNetwork* _pBPNN;
 };
 

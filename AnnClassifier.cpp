@@ -39,10 +39,12 @@ AnnClassifier::~AnnClassifier()
 }
 
 void AnnClassifier::Train(const MyMatrix* pInput, const int* pLabel) {
+	// output the accuracy befor calculation
 	_pI = pInput;
 	_arrLabel = pLabel;
+	cout << "Accuracy:\t" << Test(_pI, _arrLabel) << endl;
 	// train
-	double dbStepSize = 0.001;
+	double dbStepSize = .001;
 	double dbReg = 0.00001;
 	// set step to 1 to show the training procedure
 	int nEpochs = 100;
@@ -56,8 +58,8 @@ void AnnClassifier::trainStep(double dbStepSize, double dbReg) {
 	// 1.evaluate class scores
 	MyMatrix scores(_nPoints, _nClass);
 	evaluateScore(&scores);
+
 	/*
-	Test(_pI, _arrLabel);
 	for (size_t i = 0; i < _nPoints; i++)
 	{
 		for (size_t j = 0; j < _nClass; j++)
@@ -67,6 +69,7 @@ void AnnClassifier::trainStep(double dbStepSize, double dbReg) {
 		cout << endl;
 	}
 	*/
+
 	// 2.compute the class probabilities
 	MyMatrix expScores(&scores, exp);
 	MyMatrix expScoreSum;
@@ -141,7 +144,7 @@ void AnnClassifier::trainStep(double dbStepSize, double dbReg) {
 	_pB2->Linear(&dB2, -dbStepSize);
 
 	// 8.calculate score and accuracy
-	cout << "Accuracy:\t" << Test(_pI, _arrLabel) << endl;;
+	cout << "Accuracy:\t" << Test(_pI, _arrLabel) << endl;
 }
 
 
@@ -166,6 +169,7 @@ int AnnClassifier::CalcLabel(const double* X) {
 			nResult = i;
 			dbMaxScore = dbValue;
 		}
+//		cout << dbValue << endl;
 	}
 	/*
 	if (nResult>0)
@@ -182,4 +186,11 @@ void AnnClassifier::evaluateScore(MyMatrix* pScores) {
 	_pHidden->Formula(_pI, _pW1, _pB1);
 	_pHidden->TrimNegative();
 	pScores->Formula(_pHidden, _pW2, _pB2);
+
+//	_pI->Print();
+//	_pW1->Print();
+//	_pB1->Print();
+//	_pHidden->Print();
+//	_pW2->Print();
+//	_pB2->Print();
 }

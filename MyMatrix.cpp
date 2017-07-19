@@ -1,7 +1,9 @@
 #include "MyMatrix.h"
 #include <assert.h>
 #include <random>
+#include <iostream>
 
+using namespace std;
 
 MyMatrix::MyMatrix(int r, int c):_nR(r),_nC(c)
 {
@@ -63,6 +65,16 @@ MyMatrix::MyMatrix(const MyMatrix* m1, double(*f)(double)) {
 	}
 }
 
+void MyMatrix::Print()const {
+	for (size_t i = 0; i < _nR; i++)
+	{
+		for (size_t j = 0; j < _nC; j++)
+		{
+			cout << _data[i][j] << "\t";
+		}
+		cout << endl;
+	}
+}
 
 MyMatrix::MyMatrix():_data(0) {
 	

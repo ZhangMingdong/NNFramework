@@ -2,6 +2,9 @@
 #include "SoftMaxClassifier.h"
 #include "AnnClassifier.h"
 
+#include<iostream>
+
+using namespace std;
 
 IMyClassifier::IMyClassifier() :_nPoints(0)
 , _nD(0)
@@ -45,6 +48,7 @@ double IMyClassifier::Test(const MyMatrix* pTestData, const int* pTestLabel) {
 	int nPoints = pTestData->Rows();
 	for (size_t i = 0; i < nPoints; i++)
 	{
+//		cout << CalcLabel(pTestData->GetRow(i)) << "\t" << pTestLabel[i] << endl;
 		if (CalcLabel(pTestData->GetRow(i)) == pTestLabel[i]) nPredicted++;
 	}
 	return nPredicted / (double)(nPoints);
