@@ -64,6 +64,17 @@ int NNImage::GetPixel(int r, int c,int t)
 	return (this->_arrData[((r * nc) + c)*nt + t]);
 }
 
+
+void NNImage::SetLabeledVector(LabeledVector* pLV) {
+	int nD = pLV->GetDimension();
+	for (size_t i = 0; i < nD; i++)
+	{
+		pLV->SetData(i, _arrData[i]/255.0);
+	}
+	pLV->SetK(_nK);
+	pLV->SetLabel(_nLabel);
+}
+
 void NNImage::setLabelFromName() {
 	int scale;
 	char userid[40], head[40], expression[40], eyes[40], photo[40];

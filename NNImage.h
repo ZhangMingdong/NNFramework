@@ -1,5 +1,6 @@
 #pragma once
 #include <vector>
+#include"LabeledVector.h"
 /*
 	class used to represent the image data used in neural network
 	Mingdong
@@ -21,6 +22,8 @@ public:
 public:
 	void SetPixel(int r, int c,int t, int val);
 	int GetPixel(int r, int c,int t);
+	// set a labeld vector
+	void SetLabeledVector(LabeledVector* pLV);
 public:
 	// read an image from file
 	static NNImage* Read(char *filename);

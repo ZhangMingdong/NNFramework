@@ -21,26 +21,29 @@ static int g_nHiddenLayers = 30;
 static int g_nOutputLayers = 20;
 */
 
-/*
+
 // head
 static EnumProperty g_targetProperty = P_Head;
 static char* g_pModelFileName = "head.net";
-static int g_nHiddenLayers = 3;
+static int g_nHiddenLayers = 4;
 static int g_nOutputLayers = 4;
 
 static double g_dbEta = 0.1;
 static double g_dbDMomentum = 0.1;
-*/
+
 
 /*
 // expression
 static EnumProperty g_targetProperty = P_Expression;
 static char* g_pModelFileName = "expression.net";
-static int g_nHiddenLayers = 8;
+static int g_nHiddenLayers = 4;
 static int g_nOutputLayers = 4;
+static double g_dbEta = 0.1;
+static double g_dbDMomentum = 0.1;
 */
 
 
+/*
 // eye
 static EnumProperty g_targetProperty = P_Eye;
 static char* g_pModelFileName = "sunglasses.net";
@@ -48,16 +51,9 @@ static int g_nHiddenLayers = 3;
 static int g_nOutputLayers = 1;
 static double g_dbEta = 0.1;
 static double g_dbDMomentum = 0.1;
-
-
-/*
-
-static EnumProperty g_targetProperty = P_Eye;
-static char* g_pModelFileName = "sunglasses.net";
-static int g_nHiddenLayers = 3;
-static int g_nOutputLayers = 1;
-
 */
+
+
 
 
 static const int g_nImgRow = 100;

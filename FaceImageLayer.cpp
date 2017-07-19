@@ -62,7 +62,6 @@ FaceImageLayer::FaceImageLayer()
 	}
 }
 
-
 FaceImageLayer::~FaceImageLayer()
 {
 	for (size_t i = 0; i < 3; i++)
@@ -71,10 +70,12 @@ FaceImageLayer::~FaceImageLayer()
 	}
 }
 
-
 void FaceImageLayer::Initialize() {
+	// 1.load the face image data
 	loadData();
+	// 2.train the classifier
 	trainNNFace();
+	// 3.generate face texture
 	generateTexture();
 
 //	testMyAnn();
@@ -92,6 +93,14 @@ void FaceImageLayer::loadData() {
 		_arrImage[i] = new NNImageList();
 		// load train, test1, or test2 sets
 		_arrImage[i]->LoadFromFile(arrFileName[i]);
+		for (size_t j = 0,length= (*_arrImage[i]).size(); j < length; j++)
+		{
+			NNImage* pImage = (*_arrImage[i])[j];
+			int nD = pImage->_nCols*pImage->_nRows*pImage->_nTuls;
+			LabeledVector*pLV=new LabeledVector(nD);
+			pImage->SetLabeledVector(pLV);
+			_arrInputVector[i].push_back(pLV);
+		}
 	}
 
 
@@ -118,6 +127,11 @@ void FaceImageLayer::trainNNFace() {
 	printf("%d images in training set\n", _arrImage[0]->size());
 	printf("%d images in test1 set\n", _arrImage[1]->size());
 	printf("%d images in test2 set\n", _arrImage[2]->size());
+	if (epochs > 0) {
+		printf("Training underway (going to %d epochs)\n", epochs);
+		printf("Will save network every %d epochs\n", savedelta);
+	}
+
 
 
 	// 0.Create network
@@ -133,17 +147,15 @@ void FaceImageLayer::trainNNFace() {
 	_pBPNN = BPNeuralNetwork::Create(imgsize, g_nHiddenLayers, g_nOutputLayers);
 
 
-	if (epochs > 0) {
-		printf("Training underway (going to %d epochs)\n", epochs);
-		printf("Will save network every %d epochs\n", savedelta);
-	}
-
 	/*** Print out performance before any epochs have been completed. ***/
 	printf("0 0.0 ");
-	_pBPNN->CalculatePerformance(_arrImage[0], 0);
-	_pBPNN->CalculatePerformance(_arrImage[1], 0);
-	_pBPNN->CalculatePerformance(_arrImage[2], 0);
-	printf("\n"); 
+//	_pBPNN->CalculatePerformance(_arrImage[0], 0);
+//	_pBPNN->CalculatePerformance(_arrImage[1], 0);
+//	_pBPNN->CalculatePerformance(_arrImage[2], 0);
+	_pBPNN->CalculatePerformance(_arrInputVector[0], 0);
+	_pBPNN->CalculatePerformance(_arrInputVector[1], 0);
+	_pBPNN->CalculatePerformance(_arrInputVector[2], 0);
+	printf("\n");
 
 	// 1.train
 	for (int epoch = 1; epoch <= epochs; epoch++) {
@@ -156,10 +168,12 @@ void FaceImageLayer::trainNNFace() {
 		for (int i = 0; i < _nTrainSize; i++) {
 
 			/** Set up input units on net with image i **/
-			_pBPNN->LoadInputImage((*_arrImage[0])[i]);
+//			_pBPNN->LoadInputImage((*_arrImage[0])[i]);
 
 			/** Set up target vector for image i **/
-			_pBPNN->LoadTargetNew((*_arrImage[0])[i]);
+//			_pBPNN->LoadTargetNew((*_arrImage[0])[i]);
+
+			_pBPNN->LoadInputData(_arrInputVector[0][i]);
 
 			/** Run backprop, learning rate 0.3, momentum 0.3 **/
 			_pBPNN->Train(0.3, 0.3, &out_err, &hid_err);
@@ -169,9 +183,12 @@ void FaceImageLayer::trainNNFace() {
 		printf("%g ", sumerr);
 
 		/*** Evaluate performance on train, test, test2, and print perf ***/
-		_pBPNN->CalculatePerformance(_arrImage[0], 0);
-		_pBPNN->CalculatePerformance(_arrImage[1], 0);
-		_pBPNN->CalculatePerformance(_arrImage[2], 0);
+//		_pBPNN->CalculatePerformance(_arrImage[0], 0);
+//		_pBPNN->CalculatePerformance(_arrImage[1], 0);
+//		_pBPNN->CalculatePerformance(_arrImage[2], 0);
+		_pBPNN->CalculatePerformance(_arrInputVector[0], 0);
+		_pBPNN->CalculatePerformance(_arrInputVector[1], 0);
+		_pBPNN->CalculatePerformance(_arrInputVector[2], 0);
 		printf("\n");  
 
 		/*** Save network every 'savedelta' epochs ***/
@@ -186,7 +203,6 @@ void FaceImageLayer::trainNNFace() {
 		_pBPNN->Save(netname);
 	}
 }
-
 
 void FaceImageLayer::Draw() {
 	glEnable(GL_TEXTURE_2D);
@@ -225,7 +241,6 @@ void FaceImageLayer::Draw() {
 
 	glDisable(GL_TEXTURE_2D);
 }
-
 
 void FaceImageLayer::generateTexture() {
 
@@ -304,7 +319,6 @@ void FaceImageLayer::generateTexture() {
 	*/
 
 }
-
 
 void FaceImageLayer::testMyAnn() {
 	// number of pixels in each image

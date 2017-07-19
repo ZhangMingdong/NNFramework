@@ -1,6 +1,8 @@
 #pragma once
 
 #include "setting.h"
+#include "LabeledVector.h"
+#include <vector>
 
 class NNImageList;
 class NNImage;
@@ -55,17 +57,11 @@ public:
 	void Save(char *filename);
 
 	// calculate the performance on the image list
-	void CalculatePerformance(NNImageList *il, int list_errors);
-	// Load the image into the input layer
-	void LoadInputImage(NNImage *img);
+	void CalculatePerformance(const std::vector<LabeledVector*>& vecLV, int list_errors);
 
-	// for new data set
-	void LoadTargetNew(NNImage *img);
+	// load data for the input layer and labels
+	void LoadInputData(const LabeledVector* pLV);
 
-
-
-	// calculate the performance on the image list for new dataset
-	void CalculatePerformanceNew(NNImageList *il, int list_errors);
 
 private:
 	int evaluatePerformance(double *err);

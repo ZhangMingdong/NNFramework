@@ -1,5 +1,7 @@
 #pragma once
 #include "ImageLayer.h"
+#include "LabeledVector.h"
+
 class NNImageList;
 
 class FaceImageLayer :
@@ -26,6 +28,8 @@ private:
 private:
 	// 0-training data;1,2-testing data
 	NNImageList* _arrImage[3];
+	// the input vector
+	std::vector<LabeledVector*> _arrInputVector[3];
 	// size of training set
 	int _nTrainSize;
 	// number of columns
