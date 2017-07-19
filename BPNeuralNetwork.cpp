@@ -414,26 +414,9 @@ void BPNeuralNetwork::CalculatePerformance(NNImageList *il, int list_errors)
 
 void BPNeuralNetwork::LoadInputImage(NNImage *img)
 {
-	int nr = img->_nRows;
-	int nc = img->_nCols;
-	int nt = img->_nTuls;
-	int imgsize = nr * nc*nt;
-	if (imgsize != this->input_n) {
-		printf("LOAD_INPUT_WITH_NNImage: This image has %d pixels,\n", imgsize);
-		printf("   but your net has %d input units.  I give up.\n", this->input_n);
-		exit(-1);
-	}
-
-	double *units = this->input_units;
-	int k = 1;
-	for (int i = 0; i < nr; i++) {
-		for (int j = 0; j < nc; j++) {
-			for (size_t t = 0; t < nt; t++)
-			{
-				units[k] = ((double)img->GetPixel(i, j, t)) / 255.0;
-				k++;
-			}
-		}
+	for (size_t i = 0; i < input_n; i++)
+	{
+		input_units[i] = img->_arrData[i] / 255.0;
 	}
 }
 

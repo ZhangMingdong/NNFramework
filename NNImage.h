@@ -17,12 +17,16 @@ public:
 	char *_arrName = 0;
 	int *_arrData = 0;
 	int _nLabel = -1;				// used in new dataset
+	int _nK = 0;					// number of classes
 public:
 	void SetPixel(int r, int c,int t, int val);
 	int GetPixel(int r, int c,int t);
 public:
 	// read an image from file
 	static NNImage* Read(char *filename);
+protected:
+	// set the label and number of classes from the file name
+	void setLabelFromName();
 };
 
 

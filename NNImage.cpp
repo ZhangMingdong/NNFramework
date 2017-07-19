@@ -1,6 +1,7 @@
 #include "NNImage.h"
 #include <qfile.h>
 #include "setting.h"
+#include <assert.h>
 
 NNImage::NNImage()
 {
@@ -61,6 +62,144 @@ int NNImage::GetPixel(int r, int c,int t)
 	int nc = this->_nCols;
 	int nt = this->_nTuls;
 	return (this->_arrData[((r * nc) + c)*nt + t]);
+}
+
+void NNImage::setLabelFromName() {
+	int scale;
+	char userid[40], head[40], expression[40], eyes[40], photo[40];
+
+	userid[0] = head[0] = expression[0] = eyes[0] = photo[0] = '\0';
+
+	/*** scan in the image features ***/
+	sscanf(_arrName, "%[^_]_%[^_]_%[^_]_%[^_]_%d.%[^_]",
+		userid, head, expression, eyes, &scale, photo);
+
+	char *p = strrchr(eyes, '.');
+	if (p != NULL)
+	{
+		userid[0] = head[0] = expression[0] = eyes[0] = photo[0] = '\0';
+
+		sscanf(_arrName, "%[^_]_%[^_]_%[^_]_%[^.].%[^_]", userid, head, expression, eyes, photo);
+		scale = 1;
+	}
+
+	p = strrchr(userid, '\\');
+	if (p != NULL)
+		p++;
+
+	switch (g_targetProperty)
+	{
+	case P_User:
+		_nK = 20;
+		if (!strcmp(p, "an2i")) {
+			_nLabel = 1;
+		}
+		else if (!strcmp(p, "at33")) {
+			_nLabel = 2;
+		}
+		else if (!strcmp(p, "boland")) {
+			_nLabel = 3;
+		}
+		else if (!strcmp(p, "bpm")) {
+			_nLabel = 4;
+		}
+		else if (!strcmp(p, "ch4f")) {
+			_nLabel = 5;
+		}
+		else if (!strcmp(p, "cheyer")) {
+			_nLabel = 6;
+		}
+		else if (!strcmp(p, "choon")) {
+			_nLabel = 7;
+		}
+		else if (!strcmp(p, "danieln")) {
+			_nLabel = 8;
+		}
+		else if (!strcmp(p, "glickman")) {
+			_nLabel = 9;
+		}
+		else if (!strcmp(p, "karyadi")) {
+			_nLabel = 10;
+		}
+		else if (!strcmp(p, "kawamura")) {
+			_nLabel = 11;
+		}
+		else if (!strcmp(p, "kk49")) {
+			_nLabel = 12;
+		}
+		else if (!strcmp(p, "megak")) {
+			_nLabel = 13;
+		}
+		else if (!strcmp(p, "mitchell")) {
+			_nLabel = 14;
+		}
+		else if (!strcmp(p, "night")) {
+			_nLabel = 15;
+		}
+		else if (!strcmp(p, "phoebe")) {
+			_nLabel = 16;
+		}
+		else if (!strcmp(p, "saavik")) {
+			_nLabel = 17;
+		}
+		else if (!strcmp(p, "steffi")) {
+			_nLabel = 18;
+		}
+		else if (!strcmp(p, "sz24")) {
+			_nLabel = 19;
+		}
+		else if (!strcmp(p, "tammo")) {
+			_nLabel = 20;
+		}
+		else {
+			assert(false);
+			exit(0);
+		}
+		break;
+	case P_Head:
+		_nK = 4;
+		if (!strcmp(head, "up")) {
+			_nLabel = 1;
+		}
+		else if (!strcmp(expression, "left")) {
+			_nLabel = 2;
+		}
+		else if (!strcmp(expression, "straight")) {
+			_nLabel = 3;
+		}
+		else {
+			_nLabel = 4;
+		}
+		break;
+	case P_Expression:
+		_nK = 4;
+		if (!strcmp(expression, "angry")) {
+			_nLabel = 1;
+		}
+		else if (!strcmp(expression, "happy")) {
+			_nLabel = 2;
+		}
+		else if (!strcmp(expression, "neutral")) {
+			_nLabel = 3;
+		}
+		else {
+			_nLabel = 4;
+		}
+		break;
+	case P_Eye:
+		_nK = 2;
+		if (!strcmp(eyes, "sunglasses")) {
+			_nLabel = 1;
+		}
+		else {
+			_nLabel = 2;
+		}
+		break;
+
+	default:
+		break;
+	}
+	
 }
 
 NNImage* NNImage::Read(char *filename)
@@ -150,6 +289,7 @@ NNImage* NNImage::Read(char *filename)
 	}
 
 	fclose(pgm);
+	newptr->setLabelFromName();
 	return (newptr);
 }
 
