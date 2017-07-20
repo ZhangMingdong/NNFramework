@@ -64,5 +64,6 @@ public:
 
 
 private:
+	// return whether the result is agree with the lable and compute the loss function
 	int evaluatePerformance(double *err);
 };

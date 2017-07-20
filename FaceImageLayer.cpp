@@ -149,9 +149,7 @@ void FaceImageLayer::trainNNFace() {
 
 	/*** Print out performance before any epochs have been completed. ***/
 	printf("0 0.0 ");
-//	_pBPNN->CalculatePerformance(_arrImage[0], 0);
-//	_pBPNN->CalculatePerformance(_arrImage[1], 0);
-//	_pBPNN->CalculatePerformance(_arrImage[2], 0);
+
 	_pBPNN->CalculatePerformance(_arrInputVector[0], 0);
 	_pBPNN->CalculatePerformance(_arrInputVector[1], 0);
 	_pBPNN->CalculatePerformance(_arrInputVector[2], 0);
@@ -167,12 +165,7 @@ void FaceImageLayer::trainNNFace() {
 		double sumerr = 0.0;
 		for (int i = 0; i < _nTrainSize; i++) {
 
-			/** Set up input units on net with image i **/
-//			_pBPNN->LoadInputImage((*_arrImage[0])[i]);
-
-			/** Set up target vector for image i **/
-//			_pBPNN->LoadTargetNew((*_arrImage[0])[i]);
-
+			/** Set up input units and target vector on net with the i'th data **/
 			_pBPNN->LoadInputData(_arrInputVector[0][i]);
 
 			/** Run backprop, learning rate 0.3, momentum 0.3 **/

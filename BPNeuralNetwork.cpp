@@ -361,31 +361,22 @@ int BPNeuralNetwork::evaluatePerformance(double *err)
 average error between the target and the output units for the set. ***/
 void BPNeuralNetwork::CalculatePerformance(const std::vector<LabeledVector*>& vecLV, int list_errors)
 {
-
 	double err = 0.0;			// total error
 	int correct = 0;			// number of correct
-	int n = vecLV.size();
-	if (n <= 0) {
+	int nInputSize = vecLV.size();
+	if (nInputSize <= 0) {
 		if (!list_errors)
 			printf("0.0 0.0 ");
 		return;
 	}
 
 	// calculate every input image
-	for (int i = 0; i < n; i++) {
-		// 0.Load the image into the input layer.
-//		LoadInputImage((*il)[i]);
+	for (int i = 0; i < nInputSize; i++) {
+		// 0.Load the input and output layer.
 		LoadInputData(vecLV[i]);
 
 		// 1.Run the network on this input.
-		this->FeedForward();
-
-		/*** Set up the target vector for this image. **/
-//		this->LoadTargetNew((*il)[i]);
-
-		/*** See if it got it right. ***/
-		//chaged by sjt here.
-		//if (evaluate_performance(this, &val, 0)) {
+		FeedForward();
 
 		double val;
 		if (this->evaluatePerformance(&val)) {
@@ -395,14 +386,14 @@ void BPNeuralNetwork::CalculatePerformance(const std::vector<LabeledVector*>& ve
 	}
 
 	// calculate average
-	err = err / (double)n;
+	err = err / (double)nInputSize;
 
 	if (!list_errors)
 		/* bthom==================================
 		this line prints part of the ouput line
 		discussed in section 3.1.2 of homework
 		*/
-		printf("%g %g ", ((double)correct / (double)n) * 100.0, err);
+		printf("%g %g ", ((double)correct / (double)nInputSize) * 100.0, err);
 
 }
 
@@ -410,7 +401,7 @@ void BPNeuralNetwork::LoadInputData(const LabeledVector* pLV) {
 
 	for (size_t i = 0; i < input_n; i++)
 	{
-		input_units[i] = pLV->GetData(i);
+		input_units[i+1] = pLV->GetData(i);
 	}
 
 
