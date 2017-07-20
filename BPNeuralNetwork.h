@@ -1,6 +1,6 @@
 #pragma once
 
-#include "setting.h"
+
 #include "LabeledVector.h"
 #include <vector>
 
@@ -51,9 +51,10 @@ public:
 			eo: error of output layer
 			eh: error of hidden layer
 	*/
-	void Train(double eta, double dmomentum, double *eo, double *eh);
+	void UpdateBackward(double eta, double dmomentum, double *eo, double *eh);
 	// run the network
 	void FeedForward();
+	// save the model
 	void Save(char *filename);
 
 	// calculate the performance on the image list
@@ -61,6 +62,12 @@ public:
 
 	// load data for the input layer and labels
 	void LoadInputData(const LabeledVector* pLV);
+
+	// calculate label of the current input layer
+	int CalculateLabel();
+
+	// train the net
+	void TrainNet(int nEpochs, const std::vector<LabeledVector*>& vecLV, double eta, double dmomentum);
 
 
 private:

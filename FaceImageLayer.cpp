@@ -155,34 +155,20 @@ void FaceImageLayer::trainNNFace() {
 	_pBPNN->CalculatePerformance(_arrInputVector[2], 0);
 	printf("\n");
 
+	double dbLearningRate = .3;
+	double dbMomentum = .3;
+
 	// 1.train
 	for (int epoch = 1; epoch <= epochs; epoch++) {
 
-		printf("%d ", epoch);
 
-		double out_err;
-		double hid_err;
-		double sumerr = 0.0;
-		for (int i = 0; i < _nTrainSize; i++) {
-
-			/** Set up input units and target vector on net with the i'th data **/
-			_pBPNN->LoadInputData(_arrInputVector[0][i]);
-
-			/** Run backprop, learning rate 0.3, momentum 0.3 **/
-			_pBPNN->Train(0.3, 0.3, &out_err, &hid_err);
-
-			sumerr += (out_err + hid_err);
-		}
-		printf("%g ", sumerr);
+		_pBPNN->TrainNet(1, _arrInputVector[0], dbLearningRate, dbMomentum);
 
 		/*** Evaluate performance on train, test, test2, and print perf ***/
-//		_pBPNN->CalculatePerformance(_arrImage[0], 0);
-//		_pBPNN->CalculatePerformance(_arrImage[1], 0);
-//		_pBPNN->CalculatePerformance(_arrImage[2], 0);
 		_pBPNN->CalculatePerformance(_arrInputVector[0], 0);
 		_pBPNN->CalculatePerformance(_arrInputVector[1], 0);
 		_pBPNN->CalculatePerformance(_arrInputVector[2], 0);
-		printf("\n");  
+		printf("\n");
 
 		/*** Save network every 'savedelta' epochs ***/
 		if (!(epoch % savedelta)) {

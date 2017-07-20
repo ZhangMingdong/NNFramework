@@ -7,7 +7,7 @@
 
 #include <math.h>
 
-#include "NNImage.h"
+
 
 #define TARGET_HIGH 0.9
 #define TARGET_LOW 0.1
@@ -161,33 +161,21 @@ BPNeuralNetwork::BPNeuralNetwork(int n_in, int n_hidden, int n_out)
 
 void BPNeuralNetwork::FeedForward()
 {
-	int nIn = this->input_n;
-	int nHid = this->hidden_n;
-	int nOut = this->output_n;
-
 	/*** Feed forward input activations. ***/
-	bpnn_layerforward(this->input_units, this->hidden_units, this->input_weights, nIn, nHid);
-	bpnn_layerforward(this->hidden_units, this->output_units, this->hidden_weights, nHid, nOut);
+	bpnn_layerforward(this->input_units, this->hidden_units, this->input_weights, input_n, hidden_n);
+	bpnn_layerforward(this->hidden_units, this->output_units, this->hidden_weights, hidden_n, output_n);
 
 }
 
-void BPNeuralNetwork::Train(double eta, double momentum, double *eo, double *eh)
+void BPNeuralNetwork::UpdateBackward(double eta, double momentum, double *eo, double *eh)
 {
-	int nIn = this->input_n;
-	int nHid = this->hidden_n;
-	int nOut = this->output_n;
-
-	// 0.Feed forward input activations.
-	bpnn_layerforward(this->input_units, this->hidden_units, this->input_weights, nIn, nHid);
-	bpnn_layerforward(this->hidden_units, this->output_units, this->hidden_weights, nHid, nOut);
-
 	// 1.Compute error and delta on output and hidden units.
-	bpnn_output_error(this->output_delta, this->target, this->output_units, nOut, eo);
-	bpnn_hidden_error(this->hidden_delta, nHid, this->output_delta, nOut, this->hidden_weights, this->hidden_units, eh);
+	bpnn_output_error(this->output_delta, this->target, this->output_units, output_n, eo);
+	bpnn_hidden_error(this->hidden_delta, hidden_n, this->output_delta, output_n, this->hidden_weights, this->hidden_units, eh);
 
 	// 2.Adjust input and hidden weights.
-	bpnn_adjust_weights(this->output_delta, nOut, this->hidden_units, nHid, this->hidden_weights, this->hidden_prev_weights, eta, momentum);
-	bpnn_adjust_weights(this->hidden_delta, nHid, this->input_units, nIn, this->input_weights, this->input_prev_weights, eta, momentum);
+	bpnn_adjust_weights(this->output_delta, output_n, this->hidden_units, hidden_n, this->hidden_weights, this->hidden_prev_weights, eta, momentum);
+	bpnn_adjust_weights(this->hidden_delta, hidden_n, this->input_units, input_n, this->input_weights, this->input_prev_weights, eta, momentum);
 
 }
 
@@ -346,13 +334,30 @@ int BPNeuralNetwork::evaluatePerformance(double *err)
 	int nResult = 1;
 	for (size_t i = 1; i <= output_n; i++)
 	{
-		double delta = this->target[i] - this->output_units[i];
+//		double dbTarget1 = target[i];
+//		double dbTarget2 = output_units[i];
+//		cout << this->target[i] <<"\t"<<this->output_units[i] << endl;
 
+		double delta = this->target[i] - this->output_units[i];
 		*err  +=(0.5 * delta * delta);
 		nResult = nResult && (this->target[i] > 0.5 == this->output_units[i] > 0.5);
 	}
+//	cout << endl;
 
 	return nResult;
+}
+
+int BPNeuralNetwork::CalculateLabel() {
+	int nlabel = 1;
+	double dbMax = output_units[1];
+	for (size_t i = 2; i <= output_n; i++)
+	{
+		if (output_units[i] > dbMax) {
+			nlabel = i;
+			dbMax = output_units[i];
+		}
+	}
+	return nlabel;
 }
 
 
@@ -409,5 +414,34 @@ void BPNeuralNetwork::LoadInputData(const LabeledVector* pLV) {
 	{
 		this->target[i + 1] = TARGET_LOW;
 	}
-	this->target[pLV->GetLabel()] = TARGET_HIGH;
+	this->target[pLV->GetLabel()+1] = TARGET_HIGH;
+}
+
+
+void BPNeuralNetwork::TrainNet(int nEpochs,const std::vector<LabeledVector*>& vecLV,double eta, double dmomentum) {
+	int nPoints = vecLV.size();
+	// 1.train
+	for (int epoch = 1; epoch <= nEpochs; epoch++) {
+
+		double out_err;
+		double hid_err;
+		double sumerr = 0.0;
+		for (int i = 0; i < nPoints; i++) {
+
+			/** Set up input units and target vector on net with the i'th data **/
+
+			LoadInputData(vecLV[i]);
+			FeedForward();
+
+			/** Run backprop, learning rate 0.3, momentum 0.3 **/
+			UpdateBackward(eta, dmomentum, &out_err, &hid_err);
+
+			sumerr += (out_err + hid_err);
+
+		}
+		cout << epoch << "\t" << sumerr << "\t";
+		CalculatePerformance(vecLV, 0);
+		cout << endl;
+
+	}
 }
